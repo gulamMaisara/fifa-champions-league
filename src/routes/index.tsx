@@ -29,7 +29,8 @@ function Index() {
         supabase.from("players").select("id", { count: "exact", head: true }),
       ]);
       const total = matches.data?.length ?? 0;
-      const played = matches.data?.filter((m) => m.status === "played" || m.status === "not_played").length ?? 0;
+      const played =
+        matches.data?.filter((m) => m.status === "played" || m.status === "not_played").length ?? 0;
       return { total, played, players: players.count ?? 0 };
     },
   });
@@ -70,23 +71,40 @@ function Index() {
   return (
     <div className="space-y-12">
       <section className="relative overflow-hidden rounded-2xl border border-border bg-card p-8 sm:p-12 glow-neon">
-        <div className="absolute inset-0 opacity-30 pointer-events-none" style={{ background: "radial-gradient(600px circle at 80% 0%, var(--neon) 0%, transparent 60%)" }} />
+        <div
+          className="absolute inset-0 opacity-30 pointer-events-none"
+          style={{
+            background: "radial-gradient(600px circle at 80% 0%, var(--neon) 0%, transparent 60%)",
+          }}
+        />
         <div className="relative">
           <div className="inline-flex items-center gap-2 rounded-full border border-neon/40 bg-neon/10 px-3 py-1 text-xs uppercase tracking-widest text-neon">
             48 Teams · 104 Matches
           </div>
           <h1 className="display mt-4 text-5xl sm:text-7xl leading-none">
-            Pick the winners.<br />
+            Pick the winners.
+            <br />
             <span className="text-neon">Top the table.</span>
           </h1>
           <p className="mt-4 max-w-xl text-muted-foreground">
-            A friendly fantasy league for the FIFA tournament. No squads, no transfers — just pick which team wins each match.
+            A friendly fantasy league for the FIFA tournament. No squads, no transfers — just pick
+            which team wins each match.
           </p>
 
           {player ? (
             <div className="mt-8 flex flex-wrap gap-3">
-              <Link to="/matches" className="rounded-md bg-neon px-5 py-3 font-semibold text-primary-foreground glow-neon">Go to Matches</Link>
-              <Link to="/leaderboard" className="rounded-md border border-border px-5 py-3 font-semibold hover:bg-secondary">Leaderboard</Link>
+              <Link
+                to="/matches"
+                className="rounded-md bg-neon px-5 py-3 font-semibold text-primary-foreground glow-neon"
+              >
+                Go to Matches
+              </Link>
+              <Link
+                to="/leaderboard"
+                className="rounded-md border border-border px-5 py-3 font-semibold hover:bg-secondary"
+              >
+                Leaderboard
+              </Link>
             </div>
           ) : (
             <form onSubmit={handleJoin} className="mt-8 flex flex-col sm:flex-row gap-3 max-w-md">
@@ -98,7 +116,10 @@ function Index() {
                 maxLength={40}
                 required
               />
-              <button disabled={loading} className="rounded-md bg-neon px-5 py-3 font-semibold text-primary-foreground glow-neon disabled:opacity-60">
+              <button
+                disabled={loading}
+                className="rounded-md bg-neon px-5 py-3 font-semibold text-primary-foreground glow-neon disabled:opacity-60"
+              >
                 {loading ? "Joining…" : "Join Game"}
               </button>
             </form>
@@ -120,7 +141,9 @@ function Index() {
           <ScoringRow tag="LOSS" desc="Your picked team loses" value="−1" />
           <ScoringRow tag="NOT PLAYED" desc="Match abandoned (max 2 per player)" value="0" />
         </ul>
-        <p className="mt-4 text-xs text-muted-foreground">Values are configurable in Scoring settings.</p>
+        <p className="mt-4 text-xs text-muted-foreground">
+          Values are configurable in Scoring settings.
+        </p>
       </section>
     </div>
   );

@@ -47,7 +47,9 @@ function MatchDetail() {
         const { error } = await supabase.from("picks").update({ picked }).eq("id", myPick.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("picks").insert({ player_id: player.id, match_id: id, picked });
+        const { error } = await supabase
+          .from("picks")
+          .insert({ player_id: player.id, match_id: id, picked });
         if (error) throw error;
       }
     },
@@ -61,7 +63,10 @@ function MatchDetail() {
   });
 
   const resultMut = useMutation({
-    mutationFn: async (opts: { status: "scheduled" | "played" | "not_played"; result: "team_a" | "team_b" | "draw" | null }) => {
+    mutationFn: async (opts: {
+      status: "scheduled" | "played" | "not_played";
+      result: "team_a" | "team_b" | "draw" | null;
+    }) => {
       const { error } = await supabase
         .from("matches")
         .update({ status: opts.status, result: opts.result })
@@ -82,7 +87,10 @@ function MatchDetail() {
       const { error } = await supabase.from("matches").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => { toast.success("Match deleted"); navigate({ to: "/matches" }); },
+    onSuccess: () => {
+      toast.success("Match deleted");
+      navigate({ to: "/matches" });
+    },
     onError: (e: any) => toast.error(e.message),
   });
 
@@ -94,11 +102,17 @@ function MatchDetail() {
 
   return (
     <div className="space-y-6">
-      <Link to="/matches" className="text-sm text-muted-foreground hover:text-foreground">← All matches</Link>
+      <Link to="/matches" className="text-sm text-muted-foreground hover:text-foreground">
+        ← All matches
+      </Link>
 
       <div className="rounded-2xl border border-border bg-card p-6 sm:p-8">
         <div className="text-xs uppercase tracking-widest text-muted-foreground">
-          {m.status === "scheduled" ? "Upcoming" : m.status === "not_played" ? "Not played" : "Played"}
+          {m.status === "scheduled"
+            ? "Upcoming"
+            : m.status === "not_played"
+              ? "Not played"
+              : "Played"}
           {m.kickoff_at && <> · {new Date(m.kickoff_at).toLocaleString()}</>}
         </div>
         <h1 className="display text-5xl mt-2">
@@ -121,9 +135,13 @@ function MatchDetail() {
         <div className="rounded-2xl border border-border bg-card p-6">
           <h2 className="display text-2xl">Your pick</h2>
           {locked ? (
-            <p className="text-sm text-muted-foreground mt-2">Picks are locked — match has started or been settled.</p>
+            <p className="text-sm text-muted-foreground mt-2">
+              Picks are locked — match has started or been settled.
+            </p>
           ) : (
-            <p className="text-sm text-muted-foreground mt-1">Pick the team you think will win. You can change it until the match starts.</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              Pick the team you think will win. You can change it until the match starts.
+            </p>
           )}
           <div className="mt-4 grid sm:grid-cols-2 gap-3">
             <PickButton
@@ -158,11 +176,18 @@ function MatchDetail() {
             teamA={m.team_a}
             teamB={m.team_b}
             onCancel={() => setEditing(false)}
-            onSave={(s) => { resultMut.mutate(s); setEditing(false); }}
+            onSave={(s) => {
+              resultMut.mutate(s);
+              setEditing(false);
+            }}
           />
         ) : locked ? (
           <p className="text-sm text-muted-foreground mt-2">
-            {m.status === "not_played" ? "Marked as not played." : m.result === "draw" ? "Draw." : `Winner: ${m.result === "team_a" ? m.team_a : m.team_b}`}
+            {m.status === "not_played"
+              ? "Marked as not played."
+              : m.result === "draw"
+                ? "Draw."
+                : `Winner: ${m.result === "team_a" ? m.team_a : m.team_b}`}
           </p>
         ) : (
           <p className="text-sm text-muted-foreground mt-2">No result yet.</p>
@@ -175,19 +200,29 @@ function MatchDetail() {
         {picksQ.data && picksQ.data.length > 0 ? (
           <ul className="mt-3 grid sm:grid-cols-2 gap-2 text-sm">
             {picksQ.data.map((p: any) => (
-              <li key={p.id} className="flex items-center justify-between rounded-md border border-border bg-secondary/40 px-3 py-2">
+              <li
+                key={p.id}
+                className="flex items-center justify-between rounded-md border border-border bg-secondary/40 px-3 py-2"
+              >
                 <span className="font-medium">{p.players?.name ?? "—"}</span>
-                <span className={`text-xs uppercase tracking-widest ${p.picked === m.result ? "text-neon" : locked ? "text-muted-foreground line-through" : "text-muted-foreground"}`}>
+                <span
+                  className={`text-xs uppercase tracking-widest ${p.picked === m.result ? "text-neon" : locked ? "text-muted-foreground line-through" : "text-muted-foreground"}`}
+                >
                   {p.picked === "team_a" ? m.team_a : m.team_b}
                 </span>
               </li>
             ))}
           </ul>
-        ) : <p className="mt-2 text-sm text-muted-foreground">No picks yet.</p>}
+        ) : (
+          <p className="mt-2 text-sm text-muted-foreground">No picks yet.</p>
+        )}
       </div>
 
       <div className="text-right">
-        <button onClick={() => confirm("Delete this match?") && deleteMut.mutate()} className="text-xs text-destructive hover:underline">
+        <button
+          onClick={() => confirm("Delete this match?") && deleteMut.mutate()}
+          className="text-xs text-destructive hover:underline"
+        >
           Delete match
         </button>
       </div>
@@ -205,7 +240,17 @@ function TeamPanel({ name, stats, side }: { name: string; stats: string | null; 
   );
 }
 
-function PickButton({ label, selected, disabled, onClick }: { label: string; selected: boolean; disabled?: boolean; onClick: () => void }) {
+function PickButton({
+  label,
+  selected,
+  disabled,
+  onClick,
+}: {
+  label: string;
+  selected: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
   return (
     <button
       onClick={onClick}
@@ -213,7 +258,9 @@ function PickButton({ label, selected, disabled, onClick }: { label: string; sel
       className={`rounded-xl border p-4 text-left transition disabled:opacity-50 disabled:cursor-not-allowed
         ${selected ? "border-neon bg-neon/10 glow-neon" : "border-border bg-secondary/40 hover:border-neon/50"}`}
     >
-      <div className="text-xs uppercase tracking-widest text-muted-foreground">{selected ? "Your pick" : "Pick"}</div>
+      <div className="text-xs uppercase tracking-widest text-muted-foreground">
+        {selected ? "Your pick" : "Pick"}
+      </div>
       <div className="display text-2xl mt-1">{label}</div>
     </button>
   );
@@ -230,10 +277,13 @@ function ResultEditor({
   teamA: string;
   teamB: string;
   onCancel: () => void;
-  onSave: (s: { status: "scheduled" | "played" | "not_played"; result: "team_a" | "team_b" | "draw" | null }) => void;
+  onSave: (s: {
+    status: "scheduled" | "played" | "not_played";
+    result: "team_a" | "team_b" | "draw" | null;
+  }) => void;
 }) {
   const [choice, setChoice] = useState<"team_a" | "team_b" | "draw" | "not_played" | "scheduled">(
-    current.status === "not_played" ? "not_played" : (current.result as any) ?? "scheduled"
+    current.status === "not_played" ? "not_played" : ((current.result as any) ?? "scheduled"),
   );
   function save() {
     if (choice === "scheduled") onSave({ status: "scheduled", result: null });
@@ -261,8 +311,15 @@ function ResultEditor({
         ))}
       </div>
       <div className="flex gap-2 justify-end">
-        <button onClick={onCancel} className="rounded-md border border-border px-4 py-2 text-sm">Cancel</button>
-        <button onClick={save} className="rounded-md bg-neon px-4 py-2 text-sm font-semibold text-primary-foreground glow-neon">Save</button>
+        <button onClick={onCancel} className="rounded-md border border-border px-4 py-2 text-sm">
+          Cancel
+        </button>
+        <button
+          onClick={save}
+          className="rounded-md bg-neon px-4 py-2 text-sm font-semibold text-primary-foreground glow-neon"
+        >
+          Save
+        </button>
       </div>
     </div>
   );

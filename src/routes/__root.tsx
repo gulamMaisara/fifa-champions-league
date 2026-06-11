@@ -20,7 +20,10 @@ function NotFoundComponent() {
       <div className="max-w-md text-center">
         <h1 className="text-7xl font-bold text-neon">404</h1>
         <p className="mt-4 text-muted-foreground">Off the pitch. Page not found.</p>
-        <Link to="/" className="mt-6 inline-block rounded-md bg-neon px-4 py-2 text-primary-foreground font-semibold">
+        <Link
+          to="/"
+          className="mt-6 inline-block rounded-md bg-neon px-4 py-2 text-primary-foreground font-semibold"
+        >
           Back to lobby
         </Link>
       </div>
@@ -39,7 +42,10 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
         <h1 className="text-xl font-semibold">Something broke</h1>
         <p className="mt-2 text-sm text-muted-foreground">{error.message}</p>
         <button
-          onClick={() => { router.invalidate(); reset(); }}
+          onClick={() => {
+            router.invalidate();
+            reset();
+          }}
           className="mt-4 rounded-md bg-neon px-4 py-2 text-primary-foreground font-semibold"
         >
           Try again
@@ -55,13 +61,19 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "FIFA Fantasy Picks" },
-      { name: "description", content: "Pick winners across 104 FIFA matches and climb the leaderboard." },
+      {
+        name: "description",
+        content: "Pick winners across 104 FIFA matches and climb the leaderboard.",
+      },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-      { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&display=swap" },
+      {
+        rel: "stylesheet",
+        href: "https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&display=swap",
+      },
     ],
   }),
   shellComponent: RootShell,
@@ -73,7 +85,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 function RootShell({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <head><HeadContent /></head>
+      <head>
+        <HeadContent />
+      </head>
       <body>
         {children}
         <Scripts />
@@ -92,17 +106,42 @@ function Nav() {
           <span className="display text-2xl tracking-wider">FIFA FANTASY</span>
         </Link>
         <nav className="flex items-center gap-1 text-sm">
-          <Link to="/matches" className="px-3 py-1.5 rounded-md hover:bg-secondary" activeProps={{ className: "px-3 py-1.5 rounded-md bg-secondary text-neon" }}>Matches</Link>
-          <Link to="/leaderboard" className="px-3 py-1.5 rounded-md hover:bg-secondary" activeProps={{ className: "px-3 py-1.5 rounded-md bg-secondary text-neon" }}>Leaderboard</Link>
-          <Link to="/settings" className="px-3 py-1.5 rounded-md hover:bg-secondary" activeProps={{ className: "px-3 py-1.5 rounded-md bg-secondary text-neon" }}>Scoring</Link>
+          <Link
+            to="/matches"
+            className="px-3 py-1.5 rounded-md hover:bg-secondary"
+            activeProps={{ className: "px-3 py-1.5 rounded-md bg-secondary text-neon" }}
+          >
+            Matches
+          </Link>
+          <Link
+            to="/leaderboard"
+            className="px-3 py-1.5 rounded-md hover:bg-secondary"
+            activeProps={{ className: "px-3 py-1.5 rounded-md bg-secondary text-neon" }}
+          >
+            Leaderboard
+          </Link>
+          <Link
+            to="/settings"
+            className="px-3 py-1.5 rounded-md hover:bg-secondary"
+            activeProps={{ className: "px-3 py-1.5 rounded-md bg-secondary text-neon" }}
+          >
+            Scoring
+          </Link>
         </nav>
         {player ? (
           <div className="flex items-center gap-2 text-sm">
             <span className="hidden sm:inline text-muted-foreground">Playing as</span>
             <span className="font-semibold text-neon">{player.name}</span>
-            <button onClick={() => setCurrentPlayer(null)} className="ml-2 text-xs text-muted-foreground hover:text-foreground">switch</button>
+            <button
+              onClick={() => setCurrentPlayer(null)}
+              className="ml-2 text-xs text-muted-foreground hover:text-foreground"
+            >
+              switch
+            </button>
           </div>
-        ) : <div className="text-sm text-muted-foreground">Not signed in</div>}
+        ) : (
+          <div className="text-sm text-muted-foreground">Not signed in</div>
+        )}
       </div>
     </header>
   );

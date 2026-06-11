@@ -80,27 +80,33 @@
       oklch(0.22 0.06 152 / 0.12) 80px
     );
   --gradient-neon: linear-gradient(135deg, oklch(0.86 0.22 158), oklch(0.78 0.18 188));
-  --shadow-neon: 0 0 0 1px oklch(0.86 0.22 158 / 0.4), 0 12px 40px -10px oklch(0.86 0.22 158 / 0.35);
+  --shadow-neon:
+    0 0 0 1px oklch(0.86 0.22 158 / 0.4), 0 12px 40px -10px oklch(0.86 0.22 158 / 0.35);
   --shadow-card: 0 10px 30px -12px oklch(0 0 0 / 0.5);
 }
 
-.dark { }
+.dark {
+}
 
 @layer base {
   * {
     border-color: var(--color-border);
   }
 
-  html, body {
+  html,
+  body {
     background: var(--gradient-pitch);
     background-attachment: fixed;
     color: var(--color-foreground);
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: "Inter", system-ui, sans-serif;
     min-height: 100vh;
   }
 
-  h1, h2, h3, .display {
-    font-family: 'Bebas Neue', 'Inter', sans-serif;
+  h1,
+  h2,
+  h3,
+  .display {
+    font-family: "Bebas Neue", "Inter", sans-serif;
     letter-spacing: 0.02em;
   }
 }
