@@ -275,7 +275,7 @@ function MatchDetail() {
               setEditing(false);
             }}
           />
-        ) : locked ? (
+        ) : m.status !== "scheduled" ? (
           <p className="text-sm text-muted-foreground mt-2">
             {m.status === "not_played"
               ? "Marked as not played."
