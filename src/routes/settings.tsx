@@ -4,12 +4,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { useCurrentPlayer } from "@/lib/current-player";
+
 export const Route = createFileRoute("/settings")({
   head: () => ({ meta: [{ title: "Scoring — FIFA Fantasy" }] }),
   component: SettingsPage,
 });
 
 function SettingsPage() {
+  const player = useCurrentPlayer();
   const qc = useQueryClient();
   const q = useQuery({
     queryKey: ["scoring"],
@@ -55,6 +58,15 @@ function SettingsPage() {
     },
     onError: (e: any) => toast.error(e.message),
   });
+
+  if (player?.name !== "Abir") {
+    return (
+      <div className="max-w-2xl space-y-6 text-center py-12">
+        <h1 className="display text-4xl text-neon">Access Denied</h1>
+        <p className="text-muted-foreground">Only Abir can adjust scoring settings.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-2xl space-y-6">

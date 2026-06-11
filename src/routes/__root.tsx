@@ -120,13 +120,15 @@ function Nav() {
           >
             Leaderboard
           </Link>
-          <Link
-            to="/settings"
-            className="px-3 py-1.5 rounded-md hover:bg-secondary"
-            activeProps={{ className: "px-3 py-1.5 rounded-md bg-secondary text-neon" }}
-          >
-            Scoring
-          </Link>
+          {player?.name === "Abir" && (
+            <Link
+              to="/settings"
+              className="px-3 py-1.5 rounded-md hover:bg-secondary"
+              activeProps={{ className: "px-3 py-1.5 rounded-md bg-secondary text-neon" }}
+            >
+              Scoring
+            </Link>
+          )}
         </nav>
         {player ? (
           <div className="flex items-center gap-2 text-sm">

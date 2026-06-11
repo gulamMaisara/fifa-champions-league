@@ -206,7 +206,7 @@ function AddMatchForm({ onDone }: { onDone: () => void }) {
         team_a_stats: aStats.trim() || null,
         team_b_stats: bStats.trim() || null,
         description: desc.trim() || null,
-        kickoff_at: kickoff || null,
+        kickoff_at: kickoff ? new Date(kickoff).toISOString() : null,
       });
       if (error) throw error;
     },
