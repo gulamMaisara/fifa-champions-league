@@ -24,9 +24,7 @@ export default defineConfig({
     },
   },
 
-  vite: {
-    ssr: {
-      noExternal: [],
-    },
+  nitro: {
+    preset: "vercel", // 🔥 THIS IS REQUIRED
   },
 });
