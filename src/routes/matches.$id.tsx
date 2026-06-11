@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCurrentPlayer } from "@/lib/current-player";
 import { toast } from "sonner";
 import { useState } from "react";
+import { formatTimeRemaining } from "@/lib/utils";
 
 export const Route = createFileRoute("/matches/$id")({
   head: () => ({ meta: [{ title: "Match — FIFA Fantasy" }] }),
@@ -98,7 +99,8 @@ function MatchDetail() {
   if (matchQ.error || !matchQ.data) return <p>Not found.</p>;
 
   const m = matchQ.data;
-  const locked = m.status !== "scheduled";
+  const isPastKickoff = m.kickoff_at ? new Date(m.kickoff_at) < new Date() : false;
+  const locked = m.status !== "scheduled" || isPastKickoff;
 
   return (
     <div className="space-y-6">
@@ -113,7 +115,16 @@ function MatchDetail() {
             : m.status === "not_played"
               ? "Not played"
               : "Played"}
-          {m.kickoff_at && <> · {new Date(m.kickoff_at).toLocaleString("en-US", { timeZone: "America/New_York", timeZoneName: "short" })}</>}
+          {m.kickoff_at && (
+            <>
+              {" · "}
+              {new Date(m.kickoff_at).toLocaleString("en-US", { timeZone: "America/New_York", timeZoneName: "short" })}
+              {m.status === "scheduled" && (() => {
+                const tr = formatTimeRemaining(m.kickoff_at);
+                return tr ? ` (${tr})` : "";
+              })()}
+            </>
+          )}
         </div>
         <h1 className="display text-5xl mt-2">
           <span className={m.result === "team_a" ? "text-neon" : ""}>{m.team_a}</span>
@@ -160,8 +171,9 @@ function MatchDetail() {
         </div>
       )}
 
-      {/* Result entry — anyone can */}
-      <div className="rounded-2xl border border-border bg-card p-6">
+      {/* Result entry — only Abir can */}
+      {player?.name === "Abir" && (
+        <div className="rounded-2xl border border-border bg-card p-6">
         <div className="flex items-center justify-between">
           <h2 className="display text-2xl">Match result</h2>
           {!editing && (
@@ -193,6 +205,7 @@ function MatchDetail() {
           <p className="text-sm text-muted-foreground mt-2">No result yet.</p>
         )}
       </div>
+      )}
 
       {/* Other players' picks */}
       <div className="rounded-2xl border border-border bg-card p-6">
@@ -218,14 +231,16 @@ function MatchDetail() {
         )}
       </div>
 
-      <div className="text-right">
-        <button
-          onClick={() => confirm("Delete this match?") && deleteMut.mutate()}
-          className="text-xs text-destructive hover:underline"
-        >
-          Delete match
-        </button>
-      </div>
+      {player?.name === "Abir" && (
+        <div className="text-right">
+          <button
+            onClick={() => confirm("Delete this match?") && deleteMut.mutate()}
+            className="text-xs text-destructive hover:underline"
+          >
+            Delete match
+          </button>
+        </div>
+      )}
     </div>
   );
 }

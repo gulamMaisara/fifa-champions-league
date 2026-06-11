@@ -4,6 +4,8 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentPlayer } from "@/lib/current-player";
 import { toast } from "sonner";
+import { fromZonedTime } from "date-fns-tz";
+import { formatTimeRemaining } from "@/lib/utils";
 
 export const Route = createFileRoute("/matches")({
   head: () => ({ meta: [{ title: "Matches — FIFA Fantasy" }] }),
@@ -154,6 +156,10 @@ function MatchCard({ match, myPick }: { match: MatchRow; myPick?: "team_a" | "te
           {match.kickoff_at && (
             <span className="text-muted-foreground">
               · {new Date(match.kickoff_at).toLocaleString("en-US", { timeZone: "America/New_York", timeZoneName: "short" })}
+              {match.status === "scheduled" && (() => {
+                const tr = formatTimeRemaining(match.kickoff_at);
+                return tr ? ` (${tr})` : "";
+              })()}
             </span>
           )}
         </div>
@@ -206,7 +212,7 @@ function AddMatchForm({ onDone }: { onDone: () => void }) {
         team_a_stats: aStats.trim() || null,
         team_b_stats: bStats.trim() || null,
         description: desc.trim() || null,
-        kickoff_at: kickoff ? new Date(kickoff).toISOString() : null,
+        kickoff_at: kickoff ? fromZonedTime(kickoff, "America/New_York").toISOString() : null,
       });
       if (error) throw error;
     },
