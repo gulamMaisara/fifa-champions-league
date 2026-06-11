@@ -113,7 +113,7 @@ function MatchDetail() {
             : m.status === "not_played"
               ? "Not played"
               : "Played"}
-          {m.kickoff_at && <> · {new Date(m.kickoff_at).toLocaleString()}</>}
+          {m.kickoff_at && <> · {new Date(m.kickoff_at).toLocaleString("en-US", { timeZone: "America/New_York", timeZoneName: "short" })}</>}
         </div>
         <h1 className="display text-5xl mt-2">
           <span className={m.result === "team_a" ? "text-neon" : ""}>{m.team_a}</span>

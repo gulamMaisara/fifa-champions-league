@@ -153,7 +153,7 @@ function MatchCard({ match, myPick }: { match: MatchRow; myPick?: "team_a" | "te
           <span className={statusColor}>{statusLabel}</span>
           {match.kickoff_at && (
             <span className="text-muted-foreground">
-              · {new Date(match.kickoff_at).toLocaleString()}
+              · {new Date(match.kickoff_at).toLocaleString("en-US", { timeZone: "America/New_York", timeZoneName: "short" })}
             </span>
           )}
         </div>
