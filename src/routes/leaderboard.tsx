@@ -1,7 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentPlayer } from "@/lib/current-player";
+import { toast } from "sonner";
+import { Pencil, Check, X } from "lucide-react";
 
 export const Route = createFileRoute("/leaderboard")({
   head: () => ({ meta: [{ title: "Leaderboard — FIFA Fantasy" }] }),
@@ -21,6 +24,23 @@ type Row = {
 
 function Leaderboard() {
   const me = useCurrentPlayer();
+  const qc = useQueryClient();
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+
+  const updateNameMut = useMutation({
+    mutationFn: async ({ id, name }: { id: string; name: string }) => {
+      const { error } = await supabase.from("players").update({ name: name.trim() }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Name updated successfully");
+      setEditingId(null);
+      qc.invalidateQueries({ queryKey: ["leaderboard"] });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
   const q = useQuery({
     queryKey: ["leaderboard"],
     queryFn: async () => {
@@ -126,8 +146,46 @@ function Leaderboard() {
               >
                 <td className="px-4 py-3 text-muted-foreground">{i + 1}</td>
                 <td className="px-4 py-3 font-medium">
-                  {r.name}
-                  {me?.id === r.player_id && <span className="ml-2 text-xs text-neon">you</span>}
+                  {editingId === r.player_id ? (
+                    <div className="flex items-center gap-2">
+                      <input
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        className="bg-input border border-border rounded px-2 py-1 text-sm w-32"
+                        autoFocus
+                      />
+                      <button 
+                        onClick={() => {
+                          if (editName.trim()) {
+                            updateNameMut.mutate({ id: r.player_id, name: editName });
+                          }
+                        }} 
+                        disabled={updateNameMut.isPending}
+                        className="text-neon hover:opacity-80"
+                      >
+                        <Check className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => setEditingId(null)} className="text-muted-foreground hover:opacity-80">
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 group">
+                      <span>{r.name}</span>
+                      {me?.id === r.player_id && <span className="text-xs text-neon">you</span>}
+                      {me?.name === "Abir" && (
+                        <button
+                          onClick={() => {
+                            setEditingId(r.player_id);
+                            setEditName(r.name);
+                          }}
+                          className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-neon transition-all"
+                        >
+                          <Pencil className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </td>
                 <td className="px-4 py-3 text-right display text-xl text-neon">{r.points}</td>
                 <td className="px-4 py-3 text-right">{r.wins}</td>
