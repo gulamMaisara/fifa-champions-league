@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentPlayer } from "@/lib/current-player";
 import { toast } from "sonner";
@@ -243,6 +243,9 @@ function matchTeamNames(apiTeam: any, ourTeam: string) {
 }
 
 function MatchCard({ match, myPick, liveScores }: { match: MatchRow; myPick?: "team_a" | "team_b"; liveScores?: any[] }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
   const statusColor =
     match.status === "scheduled"
       ? "text-amber-400"
@@ -279,7 +282,7 @@ function MatchCard({ match, myPick, liveScores }: { match: MatchRow; myPick?: "t
           <span className={statusColor}>{statusLabel}</span>
           {match.kickoff_at && (
             <span className="text-muted-foreground">
-              · {new Date(match.kickoff_at).toLocaleString("en-US", { timeZoneName: "short" })}
+              · {mounted ? new Date(match.kickoff_at).toLocaleString("en-US", { timeZoneName: "short" }) : "..."}
               {match.status === "scheduled" && (() => {
                 const tr = formatTimeRemaining(match.kickoff_at);
                 return tr ? ` (${tr})` : "";

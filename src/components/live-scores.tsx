@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import { Loader2, ChevronDown, ChevronUp } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { fromZonedTime } from "date-fns-tz";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { STADIUM_TIMEZONES } from "@/lib/utils";
@@ -74,7 +74,11 @@ export function useLiveScores() {
 }
 
 export function LiveScores() {
-  const { data: matches, isLoading, error } = useLiveScores();
+  const { data: matches = [], isLoading, error } = useLiveScores();
+  const [isOpen, setIsOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
 
   if (isLoading) {
     return (
@@ -92,7 +96,6 @@ export function LiveScores() {
     );
   }
 
-  const [isOpen, setIsOpen] = useState(false);
 
   // Filter out matches that are not related to top competitions if needed, or just show them.
   const activeStatuses = ["IN_PLAY", "PAUSED", "FINISHED", "TIMED", "SCHEDULED"];
@@ -128,6 +131,7 @@ export function LiveScores() {
           >
             {isLive ? "LIVE" : isFinished ? "FT" : (() => {
               if (!m.date) return "SCHEDULED";
+              if (!mounted) return "...";
               const parts = m.date.split(" ");
               if (parts.length !== 2) return "SCHEDULED";
               const [mo, d, y] = parts[0].split("/");
