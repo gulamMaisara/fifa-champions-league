@@ -10,19 +10,14 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SettingsRouteImport } from './routes/settings'
-import { Route as MatchesRouteImport } from './routes/matches'
 import { Route as LeaderboardRouteImport } from './routes/leaderboard'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as MatchesIndexRouteImport } from './routes/matches.index'
 import { Route as MatchesIdRouteImport } from './routes/matches.$id'
 
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MatchesRoute = MatchesRouteImport.update({
-  id: '/matches',
-  path: '/matches',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LeaderboardRoute = LeaderboardRouteImport.update({
@@ -35,53 +30,59 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MatchesIndexRoute = MatchesIndexRouteImport.update({
+  id: '/matches/',
+  path: '/matches/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MatchesIdRoute = MatchesIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => MatchesRoute,
+  id: '/matches/$id',
+  path: '/matches/$id',
+  getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/leaderboard': typeof LeaderboardRoute
-  '/matches': typeof MatchesRouteWithChildren
   '/settings': typeof SettingsRoute
   '/matches/$id': typeof MatchesIdRoute
+  '/matches/': typeof MatchesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/leaderboard': typeof LeaderboardRoute
-  '/matches': typeof MatchesRouteWithChildren
   '/settings': typeof SettingsRoute
   '/matches/$id': typeof MatchesIdRoute
+  '/matches': typeof MatchesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/leaderboard': typeof LeaderboardRoute
-  '/matches': typeof MatchesRouteWithChildren
   '/settings': typeof SettingsRoute
   '/matches/$id': typeof MatchesIdRoute
+  '/matches/': typeof MatchesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/leaderboard' | '/matches' | '/settings' | '/matches/$id'
+  fullPaths: '/' | '/leaderboard' | '/settings' | '/matches/$id' | '/matches/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/leaderboard' | '/matches' | '/settings' | '/matches/$id'
+  to: '/' | '/leaderboard' | '/settings' | '/matches/$id' | '/matches'
   id:
     | '__root__'
     | '/'
     | '/leaderboard'
-    | '/matches'
     | '/settings'
     | '/matches/$id'
+    | '/matches/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   LeaderboardRoute: typeof LeaderboardRoute
-  MatchesRoute: typeof MatchesRouteWithChildren
   SettingsRoute: typeof SettingsRoute
+  MatchesIdRoute: typeof MatchesIdRoute
+  MatchesIndexRoute: typeof MatchesIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -91,13 +92,6 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/matches': {
-      id: '/matches'
-      path: '/matches'
-      fullPath: '/matches'
-      preLoaderRoute: typeof MatchesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/leaderboard': {
@@ -114,32 +108,29 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/matches/': {
+      id: '/matches/'
+      path: '/matches'
+      fullPath: '/matches/'
+      preLoaderRoute: typeof MatchesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/matches/$id': {
       id: '/matches/$id'
-      path: '/$id'
+      path: '/matches/$id'
       fullPath: '/matches/$id'
       preLoaderRoute: typeof MatchesIdRouteImport
-      parentRoute: typeof MatchesRoute
+      parentRoute: typeof rootRouteImport
     }
   }
 }
 
-interface MatchesRouteChildren {
-  MatchesIdRoute: typeof MatchesIdRoute
-}
-
-const MatchesRouteChildren: MatchesRouteChildren = {
-  MatchesIdRoute: MatchesIdRoute,
-}
-
-const MatchesRouteWithChildren =
-  MatchesRoute._addFileChildren(MatchesRouteChildren)
-
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   LeaderboardRoute: LeaderboardRoute,
-  MatchesRoute: MatchesRouteWithChildren,
   SettingsRoute: SettingsRoute,
+  MatchesIdRoute: MatchesIdRoute,
+  MatchesIndexRoute: MatchesIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { fromZonedTime } from "date-fns-tz";
 import { formatTimeRemaining } from "@/lib/utils";
 
-export const Route = createFileRoute("/matches")({
+export const Route = createFileRoute("/matches/")({
   head: () => ({ meta: [{ title: "Matches — FIFA Fantasy" }] }),
   component: MatchesPage,
 });
