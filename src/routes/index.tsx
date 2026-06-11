@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCurrentPlayer, setCurrentPlayer } from "@/lib/current-player";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { LiveScores } from "@/components/live-scores";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -126,6 +127,8 @@ function Index() {
           )}
         </div>
       </section>
+
+      <LiveScores />
 
       <section className="grid sm:grid-cols-3 gap-4">
         <StatCard label="Matches" value={`${stats.data?.total ?? 0} / 104`} />

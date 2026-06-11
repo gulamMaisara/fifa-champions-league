@@ -22,3 +22,32 @@ export function formatTimeRemaining(dateStr: string): string | null {
   if (parts.length === 0) return "soon";
   return `in ${parts.join(" ")}`;
 }
+
+export function getMatchStatusLabel(status: string, kickoff_at: string | null): string {
+  if (status === "not_played") return "Not played";
+  if (status === "played") return "Played";
+  if (!kickoff_at) return "Upcoming";
+  
+  const diffMinutes = (new Date().getTime() - new Date(kickoff_at).getTime()) / 60000;
+  if (diffMinutes >= 100) return "Finished";
+  if (diffMinutes >= 0) return "Started";
+  return "Upcoming";
+}
+export const STADIUM_TIMEZONES: Record<string, string> = {
+  "1": "America/Mexico_City", // Azteca
+  "2": "America/Mexico_City", // Akron (Guadalajara)
+  "3": "America/Monterrey",   // BBVA (Monterrey)
+  "4": "America/Chicago",     // AT&T (Dallas)
+  "5": "America/Chicago",     // NRG (Houston)
+  "6": "America/Chicago",     // Arrowhead (Kansas City)
+  "7": "America/New_York",    // Mercedes-Benz (Atlanta)
+  "8": "America/New_York",    // Hard Rock (Miami)
+  "9": "America/New_York",    // Gillette (Boston)
+  "10": "America/New_York",   // Lincoln Financial (Philadelphia)
+  "11": "America/New_York",   // MetLife (NY/NJ)
+  "12": "America/Toronto",    // BMO Field (Toronto)
+  "13": "America/Vancouver",  // BC Place (Vancouver)
+  "14": "America/Los_Angeles", // Lumen (Seattle)
+  "15": "America/Los_Angeles", // Levi's (SF)
+  "16": "America/Los_Angeles", // SoFi (LA)
+};

@@ -1,16 +1,99 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { createServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentPlayer } from "@/lib/current-player";
 import { toast } from "sonner";
 import { fromZonedTime } from "date-fns-tz";
-import { formatTimeRemaining } from "@/lib/utils";
+import { formatTimeRemaining, getMatchStatusLabel, STADIUM_TIMEZONES } from "@/lib/utils";
+import { useLiveScores } from "@/components/live-scores";
 
 export const Route = createFileRoute("/matches/")({
   head: () => ({ meta: [{ title: "Matches — FIFA Fantasy" }] }),
   component: MatchesPage,
 });
+
+function getApiMatchUUID(apiId: string | number) {
+  const padded = String(apiId).padStart(12, "0");
+  return `00000000-0000-0000-0000-${padded}`;
+}
+
+export const syncApiMatchesFn = createServerFn({ method: "POST" })
+  .handler(async () => {
+    // 1. Fetch matches from API
+    const res = await fetch("https://worldcup26.ir/get/games");
+    if (!res.ok) throw new Error("Failed to fetch API");
+    const data = await res.json();
+    const games = data.games || [];
+
+    // 2. Fetch existing synced matches from Supabase
+    const { data: existing, error: fetchErr } = await supabase
+      .from("matches")
+      .select("id, team_a, team_b, kickoff_at");
+      
+    if (fetchErr) throw new Error(fetchErr.message);
+
+    const existingMap = new Map(existing.map((m) => [m.id, m]));
+
+    // 3. Prepare upserts
+    const placeholders = ["Winner", "Runner-up", "3rd", "Loser", "Match"];
+    const isPlaceholder = (name: string) => placeholders.some((p) => name.includes(p));
+
+    const upserts = games.map((g: any) => {
+      const uuid = getApiMatchUUID(g.id);
+      const apiTeamA = g.home_team_name_en || g.home_team_label;
+      const apiTeamB = g.away_team_name_en || g.away_team_label;
+      let status = "scheduled";
+      if (g.finished === "TRUE") status = "played";
+      else if (g.time_elapsed !== "notstarted" && g.time_elapsed !== "finished") status = "played";
+
+      const existingMatch = existingMap.get(uuid);
+
+      let finalTeamA = apiTeamA;
+      let finalTeamB = apiTeamB;
+
+      let finalKickoff = null;
+      if (g.local_date) {
+        const parts = g.local_date.split(" ");
+        if (parts.length === 2) {
+          const [mo, d, y] = parts[0].split("/");
+          const time = parts[1];
+          const isoStr = `${y}-${mo}-${d}T${time}:00`;
+          try {
+            const tz = STADIUM_TIMEZONES[g.stadium_id] || "America/New_York";
+            finalKickoff = fromZonedTime(isoStr, tz).toISOString();
+          } catch (e) {
+            console.error("Date parse error", e);
+          }
+        }
+      }
+
+      if (existingMatch) {
+        // If existing is a placeholder, let the API overwrite it.
+        // Otherwise, keep the custom name (Abir's edit).
+        if (!isPlaceholder(existingMatch.team_a)) {
+          finalTeamA = existingMatch.team_a;
+        }
+        if (!isPlaceholder(existingMatch.team_b)) {
+          finalTeamB = existingMatch.team_b;
+        }
+      }
+
+      return {
+        id: uuid,
+        team_a: finalTeamA,
+        team_b: finalTeamB,
+        status: status as "scheduled" | "played" | "not_played",
+        kickoff_at: finalKickoff,
+      };
+    });
+
+    const { error: upsertErr } = await supabase.from("matches").upsert(upserts, { onConflict: "id" });
+    if (upsertErr) throw new Error(upsertErr.message);
+
+    return { success: true, count: upserts.length };
+  });
 
 type MatchRow = {
   id: string;
@@ -27,6 +110,7 @@ function MatchesPage() {
   const qc = useQueryClient();
   const [showAdd, setShowAdd] = useState(false);
   const [filter, setFilter] = useState<"all" | "scheduled" | "played">("all");
+  const { data: liveScores } = useLiveScores();
 
   const { data: matches = [], isLoading } = useQuery({
     queryKey: ["matches"],
@@ -34,7 +118,8 @@ function MatchesPage() {
       const { data, error } = await supabase
         .from("matches")
         .select("id,team_a,team_b,description,status,result,kickoff_at,created_at")
-        .order("created_at", { ascending: false });
+        .order("kickoff_at", { ascending: true, nullsFirst: false })
+        .order("id", { ascending: true });
       if (error) throw error;
       return data as MatchRow[];
     },
@@ -55,6 +140,15 @@ function MatchesPage() {
       });
       return map;
     },
+  });
+
+  const syncMut = useMutation({
+    mutationFn: () => syncApiMatchesFn(),
+    onSuccess: () => {
+      toast.success("Matches successfully synced from API!");
+      qc.invalidateQueries({ queryKey: ["matches"] });
+    },
+    onError: (e: any) => toast.error(e.message),
   });
 
   const visible = matches.filter((m) => {
@@ -96,6 +190,15 @@ function MatchesPage() {
               </button>
             ))}
           </div>
+          {player?.name === "Abir" && (
+            <button
+              onClick={() => syncMut.mutate()}
+              disabled={syncMut.isPending}
+              className="rounded-md border border-neon/50 px-4 py-2 font-semibold text-neon hover:bg-neon/10 transition disabled:opacity-50"
+            >
+              {syncMut.isPending ? "Syncing..." : "Sync API Matches"}
+            </button>
+          )}
           <button
             onClick={() => setShowAdd(!showAdd)}
             className="rounded-md bg-neon px-4 py-2 font-semibold text-primary-foreground glow-neon"
@@ -123,7 +226,7 @@ function MatchesPage() {
       ) : (
         <div className="grid gap-3">
           {visible.map((m) => (
-            <MatchCard key={m.id} match={m} myPick={myPicks[m.id]} />
+            <MatchCard key={m.id} match={m} myPick={myPicks[m.id]} liveScores={liveScores} />
           ))}
         </div>
       )}
@@ -131,31 +234,53 @@ function MatchesPage() {
   );
 }
 
-function MatchCard({ match, myPick }: { match: MatchRow; myPick?: "team_a" | "team_b" }) {
+function matchTeamNames(apiTeam: any, ourTeam: string) {
+  if (!apiTeam || !ourTeam) return false;
+  const a = apiTeam.name?.toLowerCase() || "";
+  const b = apiTeam.shortName?.toLowerCase() || "";
+  const c = apiTeam.tla?.toLowerCase() || "";
+  const t = ourTeam.toLowerCase().trim();
+  return a.includes(t) || t.includes(a) || b === t || c === t;
+}
+
+function MatchCard({ match, myPick, liveScores }: { match: MatchRow; myPick?: "team_a" | "team_b"; liveScores?: any[] }) {
   const statusColor =
     match.status === "scheduled"
       ? "text-amber-400"
       : match.status === "not_played"
         ? "text-muted-foreground"
         : "text-neon";
-  const statusLabel =
-    match.status === "scheduled"
-      ? "Upcoming"
-      : match.status === "not_played"
-        ? "Not played"
-        : "Played";
+  const statusLabel = getMatchStatusLabel(match.status, match.kickoff_at);
+
+  const liveData = liveScores?.find((lm) => {
+    const aMatchesHome = matchTeamNames(lm.homeTeam, match.team_a);
+    const bMatchesAway = matchTeamNames(lm.awayTeam, match.team_b);
+    const aMatchesAway = matchTeamNames(lm.awayTeam, match.team_a);
+    const bMatchesHome = matchTeamNames(lm.homeTeam, match.team_b);
+    return aMatchesHome || bMatchesAway || aMatchesAway || bMatchesHome;
+  });
+
+  let scoreA, scoreB, isLive = false, isFinished = false;
+  if (liveData) {
+    const isTeamAHome = matchTeamNames(liveData.homeTeam, match.team_a) || !matchTeamNames(liveData.awayTeam, match.team_a);
+    scoreA = isTeamAHome ? liveData.score?.fullTime?.home : liveData.score?.fullTime?.away;
+    scoreB = isTeamAHome ? liveData.score?.fullTime?.away : liveData.score?.fullTime?.home;
+    isLive = liveData.status === "IN_PLAY" || liveData.status === "PAUSED";
+    isFinished = liveData.status === "FINISHED";
+  }
+
   return (
     <Link
       to="/matches/$id"
       params={{ id: match.id }}
-      className="group flex items-center justify-between gap-4 rounded-xl border border-border bg-card p-4 hover:border-neon/60 hover:bg-card/80 transition"
+      className="group flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-xl border border-border bg-card p-4 hover:border-neon/60 hover:bg-card/80 transition relative"
     >
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 text-xs uppercase tracking-widest">
           <span className={statusColor}>{statusLabel}</span>
           {match.kickoff_at && (
             <span className="text-muted-foreground">
-              · {new Date(match.kickoff_at).toLocaleString("en-US", { timeZone: "America/New_York", timeZoneName: "short" })}
+              · {new Date(match.kickoff_at).toLocaleString("en-US", { timeZoneName: "short" })}
               {match.status === "scheduled" && (() => {
                 const tr = formatTimeRemaining(match.kickoff_at);
                 return tr ? ` (${tr})` : "";
@@ -163,25 +288,40 @@ function MatchCard({ match, myPick }: { match: MatchRow; myPick?: "team_a" | "te
             </span>
           )}
         </div>
-        <div className="display text-2xl mt-1 truncate">
-          <TeamName name={match.team_a} winner={match.result === "team_a"} />{" "}
-          <span className="text-muted-foreground text-lg">vs</span>{" "}
-          <TeamName name={match.team_b} winner={match.result === "team_b"} />
+        <div className="display text-2xl mt-2 flex flex-col gap-1 py-1 sm:max-w-[250px]">
+          <div className="flex justify-between items-center">
+            <TeamName name={match.team_a} winner={match.result === "team_a" || (isFinished && scoreA > scoreB)} />
+            <span className="text-neon font-bold ml-4">
+              {liveData && (scoreA !== null || scoreB !== null) ? (scoreA ?? 0) : "-"}
+            </span>
+          </div>
+          <div className="flex justify-between items-center">
+            <TeamName name={match.team_b} winner={match.result === "team_b" || (isFinished && scoreB > scoreA)} />
+            <span className="text-neon font-bold ml-4">
+              {liveData && (scoreA !== null || scoreB !== null) ? (scoreB ?? 0) : "-"}
+            </span>
+          </div>
+
           {match.result === "draw" && (
-            <span className="text-muted-foreground text-base ml-2">(Draw)</span>
+            <span className="text-muted-foreground text-sm uppercase tracking-widest mt-1">(Draw)</span>
+          )}
+          {isLive && (
+            <span className="absolute top-4 right-4 text-[10px] uppercase tracking-widest px-2 py-0.5 rounded-full bg-neon/20 text-neon animate-pulse">
+              LIVE
+            </span>
           )}
         </div>
         {match.description && (
           <p className="text-sm text-muted-foreground mt-1 line-clamp-1">{match.description}</p>
         )}
       </div>
-      <div className="text-right shrink-0">
+      <div className="sm:text-right shrink-0">
         {myPick ? (
-          <div className="rounded-md border border-neon/40 bg-neon/10 px-3 py-1.5 text-xs text-neon uppercase tracking-widest">
+          <div className="inline-block rounded-md border border-neon/40 bg-neon/10 px-2 py-1 sm:px-3 sm:py-1.5 text-[10px] sm:text-xs text-neon uppercase tracking-widest">
             Picked: {myPick === "team_a" ? match.team_a : match.team_b}
           </div>
         ) : match.status === "scheduled" ? (
-          <div className="rounded-md border border-amber-400/40 bg-amber-400/10 px-3 py-1.5 text-xs text-amber-400 uppercase tracking-widest">
+          <div className="inline-block rounded-md border border-amber-400/40 bg-amber-400/10 px-2 py-1 sm:px-3 sm:py-1.5 text-[10px] sm:text-xs text-amber-400 uppercase tracking-widest">
             No pick
           </div>
         ) : (

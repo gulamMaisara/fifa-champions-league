@@ -4,7 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCurrentPlayer } from "@/lib/current-player";
 import { toast } from "sonner";
 import { useState } from "react";
-import { formatTimeRemaining } from "@/lib/utils";
+import { formatTimeRemaining, getMatchStatusLabel } from "@/lib/utils";
+import { useLiveScores } from "@/components/live-scores";
 
 export const Route = createFileRoute("/matches/$id")({
   head: () => ({ meta: [{ title: "Match — FIFA Fantasy" }] }),
@@ -17,6 +18,8 @@ function MatchDetail() {
   const player = useCurrentPlayer();
   const qc = useQueryClient();
   const [editing, setEditing] = useState(false);
+  const [selectedPlayerId, setSelectedPlayerId] = useState<string>("");
+  const { data: liveScores } = useLiveScores();
 
   const matchQ = useQuery({
     queryKey: ["match", id],
@@ -41,23 +44,37 @@ function MatchDetail() {
 
   const myPick = picksQ.data?.find((p) => p.player_id === player?.id);
 
+  const playersQ = useQuery({
+    queryKey: ["players"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("players").select("id,name").order("name");
+      if (error) throw error;
+      return data;
+    },
+    enabled: player?.name === "Abir",
+  });
+
+  const effectivePlayerId = player?.name === "Abir" && selectedPlayerId ? selectedPlayerId : player?.id;
+  const effectivePick = picksQ.data?.find((p) => p.player_id === effectivePlayerId);
+
   const pickMut = useMutation({
     mutationFn: async (picked: "team_a" | "team_b") => {
       if (!player) throw new Error("Join first");
-      if (myPick) {
-        const { error } = await supabase.from("picks").update({ picked }).eq("id", myPick.id);
+      if (!effectivePlayerId) throw new Error("No player selected");
+      if (effectivePick) {
+        const { error } = await supabase.from("picks").update({ picked }).eq("id", effectivePick.id);
         if (error) throw error;
       } else {
         const { error } = await supabase
           .from("picks")
-          .insert({ player_id: player.id, match_id: id, picked });
+          .insert({ player_id: effectivePlayerId, match_id: id, picked });
         if (error) throw error;
       }
     },
     onSuccess: () => {
       toast.success("Pick saved");
       qc.invalidateQueries({ queryKey: ["match-picks", id] });
-      qc.invalidateQueries({ queryKey: ["my-picks", player?.id] });
+      qc.invalidateQueries({ queryKey: ["my-picks", effectivePlayerId] });
       qc.invalidateQueries({ queryKey: ["leaderboard"] });
     },
     onError: (e: any) => toast.error(e.message),
@@ -100,7 +117,36 @@ function MatchDetail() {
 
   const m = matchQ.data;
   const isPastKickoff = m.kickoff_at ? new Date(m.kickoff_at) < new Date() : false;
-  const locked = m.status !== "scheduled" || isPastKickoff;
+  const locked = (m.status !== "scheduled" || isPastKickoff) && player?.name !== "Abir";
+
+  const liveData = liveScores?.find((lm) => {
+    const a = lm.homeTeam?.name?.toLowerCase() || "";
+    const b = lm.awayTeam?.name?.toLowerCase() || "";
+    const sa = lm.homeTeam?.shortName?.toLowerCase() || "";
+    const sb = lm.awayTeam?.shortName?.toLowerCase() || "";
+    const ta = m.team_a.toLowerCase().trim();
+    const tb = m.team_b.toLowerCase().trim();
+    
+    const aMatchesHome = a.includes(ta) || ta.includes(a) || sa === ta;
+    const bMatchesAway = b.includes(tb) || tb.includes(b) || sb === tb;
+    const aMatchesAway = b.includes(ta) || ta.includes(b) || sb === ta;
+    const bMatchesHome = a.includes(tb) || tb.includes(a) || sa === tb;
+    
+    return aMatchesHome || bMatchesAway || aMatchesAway || bMatchesHome;
+  });
+
+  let scoreA, scoreB, isLive = false, isFinished = false;
+  if (liveData) {
+    const a = liveData.homeTeam?.name?.toLowerCase() || "";
+    const sa = liveData.homeTeam?.shortName?.toLowerCase() || "";
+    const ta = m.team_a.toLowerCase().trim();
+    const isTeamAHome = a.includes(ta) || ta.includes(a) || sa === ta;
+    
+    scoreA = isTeamAHome ? liveData.score?.fullTime?.home : liveData.score?.fullTime?.away;
+    scoreB = isTeamAHome ? liveData.score?.fullTime?.away : liveData.score?.fullTime?.home;
+    isLive = liveData.status === "IN_PLAY" || liveData.status === "PAUSED";
+    isFinished = liveData.status === "FINISHED";
+  }
 
   return (
     <div className="space-y-6">
@@ -109,29 +155,48 @@ function MatchDetail() {
       </Link>
 
       <div className="rounded-2xl border border-border bg-card p-6 sm:p-8">
-        <div className="text-xs uppercase tracking-widest text-muted-foreground">
-          {m.status === "scheduled"
-            ? "Upcoming"
-            : m.status === "not_played"
-              ? "Not played"
-              : "Played"}
+        <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground">
+          <span>{getMatchStatusLabel(m.status, m.kickoff_at)}</span>
+          {isLive && (
+            <span className="px-2 py-0.5 rounded-full bg-neon/20 text-neon animate-pulse">
+              LIVE
+            </span>
+          )}
           {m.kickoff_at && (
             <>
-              {" · "}
-              {new Date(m.kickoff_at).toLocaleString("en-US", { timeZone: "America/New_York", timeZoneName: "short" })}
+              <span>·</span>
+              <span>{new Date(m.kickoff_at).toLocaleString("en-US", { timeZone: "America/New_York", timeZoneName: "short" })}</span>
               {m.status === "scheduled" && (() => {
                 const tr = formatTimeRemaining(m.kickoff_at);
-                return tr ? ` (${tr})` : "";
+                return tr ? <span>({tr})</span> : null;
               })()}
             </>
           )}
         </div>
-        <h1 className="display text-5xl mt-2">
-          <span className={m.result === "team_a" ? "text-neon" : ""}>{m.team_a}</span>
-          <span className="text-muted-foreground text-3xl mx-3">vs</span>
-          <span className={m.result === "team_b" ? "text-neon" : ""}>{m.team_b}</span>
-        </h1>
-        {m.result === "draw" && <p className="text-muted-foreground mt-1">Result: Draw</p>}
+        
+        <div className="display text-5xl mt-4 flex items-center relative py-4">
+          <div className="flex-1 text-right pr-20">
+            <span className={m.result === "team_a" || (isFinished && scoreA > scoreB) ? "text-neon" : ""}>{m.team_a}</span>
+          </div>
+          
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center">
+            {liveData && (scoreA !== null || scoreB !== null) ? (
+              <div className="flex items-center gap-3 bg-secondary/50 px-6 py-2 rounded-xl min-w-[120px] justify-center">
+                <span className="text-neon font-bold">{scoreA ?? 0}</span>
+                <span className="text-muted-foreground text-3xl">-</span>
+                <span className="text-neon font-bold">{scoreB ?? 0}</span>
+              </div>
+            ) : (
+              <span className="text-muted-foreground text-3xl w-[120px] text-center">vs</span>
+            )}
+          </div>
+
+          <div className="flex-1 text-left pl-20">
+            <span className={m.result === "team_b" || (isFinished && scoreB > scoreA) ? "text-neon" : ""}>{m.team_b}</span>
+          </div>
+        </div>
+        
+        {m.result === "draw" && <p className="text-center text-muted-foreground mt-4">Result: Draw</p>}
 
         {m.description && <p className="mt-4 text-sm whitespace-pre-wrap">{m.description}</p>}
 
@@ -144,7 +209,24 @@ function MatchDetail() {
       {/* Picking */}
       {player && (
         <div className="rounded-2xl border border-border bg-card p-6">
-          <h2 className="display text-2xl">Your pick</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="display text-2xl">
+              {player.name === "Abir" && effectivePlayerId !== player.id ? "Player's pick" : "Your pick"}
+            </h2>
+            {player.name === "Abir" && playersQ.data && (
+              <select
+                className="bg-secondary/40 border border-border rounded-md px-2 py-1 text-sm outline-none focus:border-neon"
+                value={selectedPlayerId || player.id}
+                onChange={(e) => setSelectedPlayerId(e.target.value)}
+              >
+                {playersQ.data.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
           {locked ? (
             <p className="text-sm text-muted-foreground mt-2">
               Picks are locked — match has started or been settled.
@@ -157,13 +239,13 @@ function MatchDetail() {
           <div className="mt-4 grid sm:grid-cols-2 gap-3">
             <PickButton
               label={m.team_a}
-              selected={myPick?.picked === "team_a"}
+              selected={effectivePick?.picked === "team_a"}
               disabled={locked || pickMut.isPending}
               onClick={() => pickMut.mutate("team_a")}
             />
             <PickButton
               label={m.team_b}
-              selected={myPick?.picked === "team_b"}
+              selected={effectivePick?.picked === "team_b"}
               disabled={locked || pickMut.isPending}
               onClick={() => pickMut.mutate("team_b")}
             />
