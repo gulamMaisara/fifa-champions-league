@@ -102,7 +102,11 @@ function Nav() {
     <header className="sticky top-0 z-40 border-b border-border/60 backdrop-blur-xl bg-background/70">
       <div className="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between gap-4">
         <Link to="/" className="flex items-center gap-2">
-          <span className="inline-block h-7 w-7 rounded-md bg-neon glow-neon" />
+          <img 
+            src="https://upload.wikimedia.org/wikipedia/en/thumb/1/17/2026_FIFA_World_Cup_emblem.svg/250px-2026_FIFA_World_Cup_emblem.svg.png" 
+            alt="FIFA 2026 Emblem" 
+            className="inline-block h-7 w-7 object-contain" 
+          />
           <span className="display text-2xl tracking-wider">FIFA FANTASY</span>
         </Link>
         <nav className="flex items-center gap-1 text-sm">
