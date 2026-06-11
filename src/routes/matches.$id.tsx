@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentPlayer } from "@/lib/current-player";
 import { toast } from "sonner";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
 export const Route = createFileRoute("/matches/$id")({
   head: () => ({ meta: [{ title: "Match — FIFA Fantasy" }] }),
