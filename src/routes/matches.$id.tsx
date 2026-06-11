@@ -290,28 +290,30 @@ function MatchDetail() {
       )}
 
       {/* Other players' picks */}
-      <div className="rounded-2xl border border-border bg-card p-6">
-        <h2 className="display text-2xl">All picks ({picksQ.data?.length ?? 0})</h2>
-        {picksQ.data && picksQ.data.length > 0 ? (
-          <ul className="mt-3 grid sm:grid-cols-2 gap-2 text-sm">
-            {picksQ.data.map((p: any) => (
-              <li
-                key={p.id}
-                className="flex items-center justify-between rounded-md border border-border bg-secondary/40 px-3 py-2"
-              >
-                <span className="font-medium">{p.players?.name ?? "—"}</span>
-                <span
-                  className={`text-xs uppercase tracking-widest ${p.picked === m.result ? "text-neon" : locked ? "text-muted-foreground line-through" : "text-muted-foreground"}`}
+      {player?.name === "Abir" && (
+        <div className="rounded-2xl border border-border bg-card p-6">
+          <h2 className="display text-2xl">All picks ({picksQ.data?.length ?? 0})</h2>
+          {picksQ.data && picksQ.data.length > 0 ? (
+            <ul className="mt-3 grid sm:grid-cols-2 gap-2 text-sm">
+              {picksQ.data.map((p: any) => (
+                <li
+                  key={p.id}
+                  className="flex items-center justify-between rounded-md border border-border bg-secondary/40 px-3 py-2"
                 >
-                  {p.picked === "team_a" ? m.team_a : m.team_b}
-                </span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="mt-2 text-sm text-muted-foreground">No picks yet.</p>
-        )}
-      </div>
+                  <span className="font-medium">{p.players?.name ?? "—"}</span>
+                  <span
+                    className={`text-xs uppercase tracking-widest ${p.picked === m.result ? "text-neon" : locked ? "text-muted-foreground line-through" : "text-muted-foreground"}`}
+                  >
+                    {p.picked === "team_a" ? m.team_a : m.team_b}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-2 text-sm text-muted-foreground">No picks yet.</p>
+          )}
+        </div>
+      )}
 
       {player?.name === "Abir" && (
         <div className="text-right">
