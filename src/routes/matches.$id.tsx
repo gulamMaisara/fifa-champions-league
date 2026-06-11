@@ -290,7 +290,7 @@ function MatchDetail() {
       )}
 
       {/* Other players' picks */}
-      {player?.name === "Abir" && (
+      {(player?.name === "Abir" || m.status === "played" || isFinished) && (
         <div className="rounded-2xl border border-border bg-card p-6">
           <h2 className="display text-2xl">All picks ({picksQ.data?.length ?? 0})</h2>
           {picksQ.data && picksQ.data.length > 0 ? (
