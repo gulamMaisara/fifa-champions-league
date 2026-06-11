@@ -14,7 +14,138 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      matches: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          kickoff_at: string | null
+          result: Database["public"]["Enums"]["match_result"] | null
+          status: Database["public"]["Enums"]["match_status"]
+          team_a: string
+          team_a_stats: string | null
+          team_b: string
+          team_b_stats: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          kickoff_at?: string | null
+          result?: Database["public"]["Enums"]["match_result"] | null
+          status?: Database["public"]["Enums"]["match_status"]
+          team_a: string
+          team_a_stats?: string | null
+          team_b: string
+          team_b_stats?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          kickoff_at?: string | null
+          result?: Database["public"]["Enums"]["match_result"] | null
+          status?: Database["public"]["Enums"]["match_status"]
+          team_a?: string
+          team_a_stats?: string | null
+          team_b?: string
+          team_b_stats?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      picks: {
+        Row: {
+          created_at: string
+          id: string
+          match_id: string
+          picked: Database["public"]["Enums"]["pick_team"]
+          player_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          match_id: string
+          picked: Database["public"]["Enums"]["pick_team"]
+          player_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          match_id?: string
+          picked?: Database["public"]["Enums"]["pick_team"]
+          player_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "picks_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "picks_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      players: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      scoring_settings: {
+        Row: {
+          draw_points: number
+          id: number
+          loss_points: number
+          max_not_played: number
+          not_played_points: number
+          updated_at: string
+          win_points: number
+        }
+        Insert: {
+          draw_points?: number
+          id?: number
+          loss_points?: number
+          max_not_played?: number
+          not_played_points?: number
+          updated_at?: string
+          win_points?: number
+        }
+        Update: {
+          draw_points?: number
+          id?: number
+          loss_points?: number
+          max_not_played?: number
+          not_played_points?: number
+          updated_at?: string
+          win_points?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +154,9 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      match_result: "team_a" | "team_b" | "draw"
+      match_status: "scheduled" | "played" | "not_played"
+      pick_team: "team_a" | "team_b"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +283,10 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      match_result: ["team_a", "team_b", "draw"],
+      match_status: ["scheduled", "played", "not_played"],
+      pick_team: ["team_a", "team_b"],
+    },
   },
 } as const
