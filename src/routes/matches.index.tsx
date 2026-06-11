@@ -19,10 +19,9 @@ function getApiMatchUUID(apiId: string | number) {
   return `00000000-0000-0000-0000-${padded}`;
 }
 
-export const syncApiMatchesFn = createServerFn({ method: "POST" })
-  .handler(async () => {
+export async function syncApiMatchesFn() {
     // 1. Fetch matches from API
-    const res = await fetch("https://worldcup26.ir/get/games");
+    const res = await fetch("/api/games");
     if (!res.ok) throw new Error("Failed to fetch API");
     const data = await res.json();
     const games = data.games || [];
@@ -93,7 +92,7 @@ export const syncApiMatchesFn = createServerFn({ method: "POST" })
     if (upsertErr) throw new Error(upsertErr.message);
 
     return { success: true, count: upserts.length };
-  });
+}
 
 type MatchRow = {
   id: string;

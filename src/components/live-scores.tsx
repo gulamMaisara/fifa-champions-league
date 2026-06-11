@@ -30,19 +30,14 @@ export interface LiveMatch {
   minute?: number;
 }
 
-export const fetchLiveScoresFn = createServerFn({ method: "GET" })
-  .handler(async () => {
-    const res = await fetch("https://worldcup26.ir/get/games");
-    if (!res.ok) throw new Error("Failed to fetch live scores");
-    const data = await res.json();
-    return data.games || [];
-  });
-
 export function useLiveScores() {
   return useQuery({
     queryKey: ["live-scores"],
     queryFn: async () => {
-      const games = await fetchLiveScoresFn();
+      const res = await fetch("/api/games");
+      if (!res.ok) throw new Error("Failed to fetch live scores");
+      const data = await res.json();
+      const games = data.games || [];
       
       const mapped: LiveMatch[] = games.map((g: any) => {
         let status = "SCHEDULED";
