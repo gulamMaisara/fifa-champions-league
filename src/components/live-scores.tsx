@@ -36,9 +36,27 @@ export const fetchGamesFn = createServerFn({ method: "GET" }).handler(async () =
   return res.json();
 });
 
-export const fetchFootballDataLiveScoresFn = createServerFn({ method: "GET" }).handler(async () => {
-  return { matches: [] };
-});
+export const fetchFootballDataLiveScoresFn = async () => {
+  try {
+    const apiKey = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_FOOTBALL_API : "";
+    
+    const res = await fetch("/api/football-data", {
+      headers: {
+        "X-Auth-Token": apiKey || ""
+      }
+    });
+    
+    if (!res.ok) {
+      console.error("Football Data API Error:", res.status);
+      return { matches: [], error: `API Error: ${res.status}` };
+    }
+    
+    return await res.json();
+  } catch (error: any) {
+    console.error("Exception in fetchFootballDataLiveScoresFn:", error);
+    return { matches: [], error: error.message || "Unknown error" };
+  }
+};
 
 export function useLiveScores() {
   return useQuery({

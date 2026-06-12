@@ -9,6 +9,11 @@ export default defineConfig({
         target: 'https://worldcup26.ir/get/games',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/games/, '')
+      },
+      '/api/football-data': {
+        target: 'https://api.football-data.org/v4/competitions/2000/matches',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/football-data/, '')
       }
     }
   },
@@ -24,7 +29,8 @@ export default defineConfig({
   nitro: {
     preset: "vercel",
     routeRules: {
-      '/api/games': { proxy: 'https://worldcup26.ir/get/games' }
+      '/api/games': { proxy: 'https://worldcup26.ir/get/games' },
+      '/api/football-data': { proxy: 'https://api.football-data.org/v4/competitions/2000/matches' }
     }
   },
 
