@@ -38,15 +38,21 @@ export const fetchGamesFn = createServerFn({ method: "GET" }).handler(async () =
 
 export const fetchFootballDataLiveScoresFn = createServerFn({ method: "GET" }).handler(async () => {
   // Use import.meta.env safely for Vite compatibility, with a fallback to process.env if available
-  const apiKey = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_FOOTBALL_API : 
-                 (typeof process !== 'undefined' && process.env ? process.env.VITE_FOOTBALL_API : "");
+  const apiKey = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_FOOTBALL_API) || 
+                 (typeof process !== 'undefined' && process.env && process.env.VITE_FOOTBALL_API) || "";
                  
   const res = await fetch("https://api.football-data.org/v4/competitions/2000/matches", {
     headers: {
-      "X-Auth-Token": apiKey || ""
+      "X-Auth-Token": apiKey
     }
   });
-  if (!res.ok) throw new Error("Failed to fetch from football-data");
+  
+  if (!res.ok) {
+    const text = await res.text();
+    console.error("Football Data API Error:", res.status, text);
+    return { matches: [], error: `API Error: ${res.status}` };
+  }
+  
   return res.json();
 });
 
