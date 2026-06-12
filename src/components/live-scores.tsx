@@ -41,8 +41,25 @@ export function useLiveScores() {
       
       const mapped: LiveMatch[] = games.map((g: any) => {
         let status = "SCHEDULED";
-        if (g.finished === "TRUE") status = "FINISHED";
-        else if (g.time_elapsed !== "notstarted" && g.time_elapsed !== "finished") status = "IN_PLAY";
+        if (g.finished === "TRUE") {
+          status = "FINISHED";
+        } else if (g.time_elapsed !== "notstarted" && g.time_elapsed !== "finished") {
+          status = "IN_PLAY";
+        } else if (g.local_date) {
+          const parts = g.local_date.split(" ");
+          if (parts.length === 2) {
+            const [mo, d, y] = parts[0].split("/");
+            const time = parts[1];
+            const isoStr = `${y}-${mo}-${d}T${time}:00`;
+            const tz = STADIUM_TIMEZONES[g.stadium_id || ""] || "America/New_York";
+            try {
+              const dateObj = fromZonedTime(isoStr, tz);
+              if (dateObj.getTime() < Date.now()) {
+                status = "IN_PLAY";
+              }
+            } catch (e) {}
+          }
+        }
 
         return {
           id: Number(g.id),
@@ -102,8 +119,23 @@ export function LiveScores() {
   const visibleMatches = matches.filter((m: any) => activeStatuses.includes(m.status));
 
   const today = new Date().toDateString();
-  const todaysMatches = visibleMatches.filter((m: any) => m.date && new Date(m.date).toDateString() === today);
-  const otherMatches = visibleMatches.filter((m: any) => !m.date || new Date(m.date).toDateString() !== today);
+  const todaysMatches = visibleMatches.filter((m: any) => {
+    if (!m.date) return false;
+    const parts = m.date.split(" ");
+    if (parts.length === 2) {
+      const [mo, d, y] = parts[0].split("/");
+      const time = parts[1];
+      const isoStr = `${y}-${mo}-${d}T${time}:00`;
+      const tz = STADIUM_TIMEZONES[m.stadium_id || ""] || "America/New_York";
+      try {
+        const dateObj = fromZonedTime(isoStr, tz);
+        return dateObj.toDateString() === today;
+      } catch (e) {}
+    }
+    return new Date(m.date).toDateString() === today;
+  });
+  
+  const otherMatches = visibleMatches.filter((m: any) => !todaysMatches.includes(m));
 
   const renderMatch = (m: any) => {
     const isLive = m.status === "IN_PLAY" || m.status === "PAUSED";
