@@ -156,10 +156,15 @@ function MatchDetail() {
 
       <div className="rounded-2xl border border-border bg-card p-6 sm:p-8">
         <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground">
-          <span>{getMatchStatusLabel(m.status, m.kickoff_at)}</span>
+          {!isLive && !isFinished && <span>{getMatchStatusLabel(m.status, m.kickoff_at)}</span>}
           {isLive && (
             <span className="px-2 py-0.5 rounded-full bg-neon/20 text-neon animate-pulse">
               LIVE
+            </span>
+          )}
+          {isFinished && (
+            <span className="px-2 py-0.5 rounded-full bg-secondary text-muted-foreground">
+              FINISHED
             </span>
           )}
           {m.kickoff_at && (

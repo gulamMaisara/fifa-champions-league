@@ -30,63 +30,61 @@ export interface LiveMatch {
   minute?: number;
 }
 
+export const fetchGamesFn = createServerFn({ method: "GET" }).handler(async () => {
+  const res = await fetch("https://worldcup26.ir/get/games");
+  if (!res.ok) throw new Error("Failed to fetch live scores");
+  return res.json();
+});
+
+export const fetchFootballDataLiveScoresFn = createServerFn({ method: "GET" }).handler(async () => {
+  const apiKey = process.env.VITE_FOOTBALL_API;
+  const res = await fetch("https://api.football-data.org/v4/competitions/2000/matches", {
+    headers: {
+      "X-Auth-Token": apiKey || ""
+    }
+  });
+  if (!res.ok) throw new Error("Failed to fetch from football-data");
+  return res.json();
+});
+
 export function useLiveScores() {
   return useQuery({
     queryKey: ["live-scores"],
     queryFn: async () => {
-      const res = await fetch("/api/games");
-      if (!res.ok) throw new Error("Failed to fetch live scores");
-      const data = await res.json();
-      const games = data.games || [];
-      
+      const data = await fetchFootballDataLiveScoresFn();
+      const games = data.matches || [];
+      // console.log(games)
+
       const mapped: LiveMatch[] = games.map((g: any) => {
-        let status = "SCHEDULED";
-        if (g.finished === "TRUE") {
-          status = "FINISHED";
-        } else if (g.time_elapsed !== "notstarted" && g.time_elapsed !== "finished") {
-          status = "IN_PLAY";
-        } else if (g.local_date) {
-          const parts = g.local_date.split(" ");
-          if (parts.length === 2) {
-            const [mo, d, y] = parts[0].split("/");
-            const time = parts[1];
-            const isoStr = `${y}-${mo}-${d}T${time}:00`;
-            const tz = STADIUM_TIMEZONES[g.stadium_id || ""] || "America/New_York";
-            try {
-              const dateObj = fromZonedTime(isoStr, tz);
-              if (dateObj.getTime() < Date.now()) {
-                status = "IN_PLAY";
-              }
-            } catch (e) {}
-          }
-        }
+        let status = g.status;
+        if (status === "TIMED") status = "SCHEDULED";
 
         return {
           id: Number(g.id),
           homeTeam: {
-            name: g.home_team_name_en || g.home_team_label,
-            shortName: g.home_team_name_en || g.home_team_label,
-            tla: (g.home_team_name_en || g.home_team_label)?.substring(0, 3).toUpperCase(),
+            name: g.homeTeam?.name,
+            shortName: g.homeTeam?.shortName,
+            tla: g.homeTeam?.tla,
           },
           awayTeam: {
-            name: g.away_team_name_en || g.away_team_label,
-            shortName: g.away_team_name_en || g.away_team_label,
-            tla: (g.away_team_name_en || g.away_team_label)?.substring(0, 3).toUpperCase(),
+            name: g.awayTeam?.name,
+            shortName: g.awayTeam?.shortName,
+            tla: g.awayTeam?.tla,
           },
           score: {
             fullTime: {
-              home: g.home_score !== "null" && g.home_score !== null ? Number(g.home_score) : null,
-              away: g.away_score !== "null" && g.away_score !== null ? Number(g.away_score) : null,
+              home: g.score?.fullTime?.home,
+              away: g.score?.fullTime?.away,
             }
           },
           status,
-          date: g.local_date,
-          stadium_id: g.stadium_id
+          date: g.utcDate,
+          minute: g.minute
         };
       });
       return mapped;
     },
-    refetchInterval: 60000,
+    refetchInterval: 30000,
   });
 }
 
@@ -119,21 +117,7 @@ export function LiveScores() {
   const visibleMatches = matches.filter((m: any) => activeStatuses.includes(m.status));
 
   const today = new Date().toDateString();
-  const todaysMatches = visibleMatches.filter((m: any) => {
-    if (!m.date) return false;
-    const parts = m.date.split(" ");
-    if (parts.length === 2) {
-      const [mo, d, y] = parts[0].split("/");
-      const time = parts[1];
-      const isoStr = `${y}-${mo}-${d}T${time}:00`;
-      const tz = STADIUM_TIMEZONES[m.stadium_id || ""] || "America/New_York";
-      try {
-        const dateObj = fromZonedTime(isoStr, tz);
-        return dateObj.toDateString() === today;
-      } catch (e) {}
-    }
-    return new Date(m.date).toDateString() === today;
-  });
+  const todaysMatches = visibleMatches.filter((m: any) => m.date && new Date(m.date).toDateString() === today);
   
   const otherMatches = visibleMatches.filter((m: any) => !todaysMatches.includes(m));
 
@@ -144,34 +128,26 @@ export function LiveScores() {
     return (
       <div
         key={m.id}
-        className={`rounded-xl border p-4 ${
-          isLive ? "border-neon bg-neon/10 glow-neon" : "border-border bg-card"
-        }`}
+        className={`rounded-xl border p-4 ${isLive ? "border-neon bg-neon/10 glow-neon" : "border-border bg-card"
+          }`}
       >
         <div className="flex justify-between items-center mb-2">
           <span className="text-[10px] uppercase tracking-widest text-muted-foreground truncate max-w-[70%]">
             {m.competition?.name || "Match"}
           </span>
           <span
-            className={`text-[10px] uppercase tracking-widest px-2 py-0.5 rounded-full ${
-              isLive
+            className={`text-[10px] uppercase tracking-widest px-2 py-0.5 rounded-full ${isLive
                 ? "bg-neon/20 text-neon animate-pulse"
                 : isFinished
                   ? "bg-secondary text-muted-foreground"
                   : "bg-amber-400/20 text-amber-400"
-            }`}
+              }`}
           >
             {isLive ? "LIVE" : isFinished ? "FT" : (() => {
               if (!m.date) return "SCHEDULED";
               if (!mounted) return "...";
-              const parts = m.date.split(" ");
-              if (parts.length !== 2) return "SCHEDULED";
-              const [mo, d, y] = parts[0].split("/");
-              const time = parts[1];
-              const isoStr = `${y}-${mo}-${d}T${time}:00`;
               try {
-                const tz = STADIUM_TIMEZONES[m.stadium_id || ""] || "America/New_York";
-                const dateObj = fromZonedTime(isoStr, tz);
+                const dateObj = new Date(m.date);
                 return dateObj.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", timeZoneName: "short" });
               } catch (e) {
                 return "SCHEDULED";

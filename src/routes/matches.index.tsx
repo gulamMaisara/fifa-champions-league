@@ -7,7 +7,7 @@ import { useCurrentPlayer } from "@/lib/current-player";
 import { toast } from "sonner";
 import { fromZonedTime } from "date-fns-tz";
 import { formatTimeRemaining, getMatchStatusLabel, STADIUM_TIMEZONES } from "@/lib/utils";
-import { useLiveScores } from "@/components/live-scores";
+import { fetchGamesFn, useLiveScores } from "@/components/live-scores";
 
 export const Route = createFileRoute("/matches/")({
   head: () => ({ meta: [{ title: "Matches — FIFA Fantasy" }] }),
@@ -20,10 +20,8 @@ function getApiMatchUUID(apiId: string | number) {
 }
 
 export async function syncApiMatchesFn() {
-    // 1. Fetch matches from API
-    const res = await fetch("/api/games");
-    if (!res.ok) throw new Error("Failed to fetch API");
-    const data = await res.json();
+    // 1. Fetch matches from API via Server Function
+    const data = await fetchGamesFn();
     const games = data.games || [];
 
     // 2. Fetch existing synced matches from Supabase
@@ -279,7 +277,17 @@ function MatchCard({ match, myPick, liveScores }: { match: MatchRow; myPick?: "t
     >
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 text-xs uppercase tracking-widest">
-          <span className={statusColor}>{statusLabel}</span>
+          {!isLive && !isFinished && <span className={statusColor}>{statusLabel}</span>}
+          {isLive && (
+            <span className="px-2 py-0.5 rounded-full bg-neon/20 text-neon animate-pulse">
+              LIVE
+            </span>
+          )}
+          {isFinished && (
+            <span className="px-2 py-0.5 rounded-full bg-secondary text-muted-foreground">
+              FT
+            </span>
+          )}
           {match.kickoff_at && (
             <span className="text-muted-foreground">
               · {mounted ? new Date(match.kickoff_at).toLocaleString("en-US", { timeZoneName: "short" }) : "..."}
@@ -306,11 +314,6 @@ function MatchCard({ match, myPick, liveScores }: { match: MatchRow; myPick?: "t
 
           {match.result === "draw" && (
             <span className="text-muted-foreground text-sm uppercase tracking-widest mt-1">(Draw)</span>
-          )}
-          {isLive && (
-            <span className="absolute top-4 right-4 text-[10px] uppercase tracking-widest px-2 py-0.5 rounded-full bg-neon/20 text-neon animate-pulse">
-              LIVE
-            </span>
           )}
         </div>
         {match.description && (

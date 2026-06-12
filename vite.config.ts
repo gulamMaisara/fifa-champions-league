@@ -23,6 +23,9 @@ export default defineConfig({
   
   nitro: {
     preset: "vercel",
+    routeRules: {
+      '/api/games': { proxy: 'https://worldcup26.ir/get/games' }
+    }
   },
 
   plugins: [
