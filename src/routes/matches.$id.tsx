@@ -126,12 +126,12 @@ function MatchDetail() {
     const sb = lm.awayTeam?.shortName?.toLowerCase() || "";
     const ta = m.team_a.toLowerCase().trim();
     const tb = m.team_b.toLowerCase().trim();
-    
+
     const aMatchesHome = a.includes(ta) || ta.includes(a) || sa === ta;
     const bMatchesAway = b.includes(tb) || tb.includes(b) || sb === tb;
     const aMatchesAway = b.includes(ta) || ta.includes(b) || sb === ta;
     const bMatchesHome = a.includes(tb) || tb.includes(a) || sa === tb;
-    
+
     return aMatchesHome || bMatchesAway || aMatchesAway || bMatchesHome;
   });
 
@@ -141,7 +141,7 @@ function MatchDetail() {
     const sa = liveData.homeTeam?.shortName?.toLowerCase() || "";
     const ta = m.team_a.toLowerCase().trim();
     const isTeamAHome = a.includes(ta) || ta.includes(a) || sa === ta;
-    
+
     scoreA = isTeamAHome ? liveData.score?.fullTime?.home : liveData.score?.fullTime?.away;
     scoreB = isTeamAHome ? liveData.score?.fullTime?.away : liveData.score?.fullTime?.home;
     isLive = liveData.status === "IN_PLAY" || liveData.status === "PAUSED";
@@ -178,12 +178,12 @@ function MatchDetail() {
             </>
           )}
         </div>
-        
+
         <div className="display text-5xl mt-4 flex items-center relative py-4">
           <div className="flex-1 text-right pr-20">
             <span className={m.result === "team_a" || (isFinished && scoreA > scoreB) ? "text-neon" : ""}>{m.team_a}</span>
           </div>
-          
+
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center">
             {liveData && (scoreA !== null || scoreB !== null) ? (
               <div className="flex items-center gap-3 bg-secondary/50 px-6 py-2 rounded-xl min-w-[120px] justify-center">
@@ -200,7 +200,7 @@ function MatchDetail() {
             <span className={m.result === "team_b" || (isFinished && scoreB > scoreA) ? "text-neon" : ""}>{m.team_b}</span>
           </div>
         </div>
-        
+
         {m.result === "draw" && <p className="text-center text-muted-foreground mt-4">Result: Draw</p>}
 
         {m.description && <p className="mt-4 text-sm whitespace-pre-wrap">{m.description}</p>}
@@ -261,64 +261,65 @@ function MatchDetail() {
       {/* Result entry — only Abir can */}
       {player?.name === "Abir" && (
         <div className="rounded-2xl border border-border bg-card p-6">
-        <div className="flex items-center justify-between">
-          <h2 className="display text-2xl">Match result</h2>
-          {!editing && (
-            <button onClick={() => setEditing(true)} className="text-sm text-neon hover:underline">
-              {locked ? "Edit result" : "Set result"}
-            </button>
+          <div className="flex items-center justify-between">
+            <h2 className="display text-2xl">Match result</h2>
+            {!editing && (
+              <button onClick={() => setEditing(true)} className="text-sm text-neon hover:underline">
+                {locked ? "Edit result" : "Set result"}
+              </button>
+            )}
+          </div>
+          {editing ? (
+            <ResultEditor
+              current={{ status: m.status, result: m.result }}
+              teamA={m.team_a}
+              teamB={m.team_b}
+              onCancel={() => setEditing(false)}
+              onSave={(s) => {
+                resultMut.mutate(s);
+                setEditing(false);
+              }}
+            />
+          ) : m.status !== "scheduled" ? (
+            <p className="text-sm text-muted-foreground mt-2">
+              {m.status === "not_played"
+                ? "Marked as not played."
+                : m.result === "draw"
+                  ? "Draw."
+                  : `Winner: ${m.result === "team_a" ? m.team_a : m.team_b}`}
+            </p>
+          ) : (
+            <p className="text-sm text-muted-foreground mt-2">No result yet.</p>
           )}
         </div>
-        {editing ? (
-          <ResultEditor
-            current={{ status: m.status, result: m.result }}
-            teamA={m.team_a}
-            teamB={m.team_b}
-            onCancel={() => setEditing(false)}
-            onSave={(s) => {
-              resultMut.mutate(s);
-              setEditing(false);
-            }}
-          />
-        ) : m.status !== "scheduled" ? (
-          <p className="text-sm text-muted-foreground mt-2">
-            {m.status === "not_played"
-              ? "Marked as not played."
-              : m.result === "draw"
-                ? "Draw."
-                : `Winner: ${m.result === "team_a" ? m.team_a : m.team_b}`}
-          </p>
-        ) : (
-          <p className="text-sm text-muted-foreground mt-2">No result yet.</p>
-        )}
-      </div>
       )}
 
       {/* Other players' picks */}
-      {(player?.name === "Abir" || m.status === "played" || isFinished) && (
-        <div className="rounded-2xl border border-border bg-card p-6">
-          <h2 className="display text-2xl">All picks ({picksQ.data?.length ?? 0})</h2>
-          {picksQ.data && picksQ.data.length > 0 ? (
-            <ul className="mt-3 grid sm:grid-cols-2 gap-2 text-sm">
-              {picksQ.data.map((p: any) => (
-                <li
-                  key={p.id}
-                  className="flex items-center justify-between rounded-md border border-border bg-secondary/40 px-3 py-2"
+      {/* {(player?.name === "Abir" || m.status === "played" || isFinished) && (
+        
+      )} */}
+      <div className="rounded-2xl border border-border bg-card p-6">
+        <h2 className="display text-2xl">All picks ({picksQ.data?.length ?? 0})</h2>
+        {picksQ.data && picksQ.data.length > 0 ? (
+          <ul className="mt-3 grid sm:grid-cols-2 gap-2 text-sm">
+            {picksQ.data.map((p: any) => (
+              <li
+                key={p.id}
+                className="flex items-center justify-between rounded-md border border-border bg-secondary/40 px-3 py-2"
+              >
+                <span className="font-medium">{p.players?.name ?? "—"}</span>
+                <span
+                  className={`text-xs uppercase tracking-widest ${p.picked === m.result ? "text-neon" : locked ? "text-muted-foreground line-through" : "text-muted-foreground"}`}
                 >
-                  <span className="font-medium">{p.players?.name ?? "—"}</span>
-                  <span
-                    className={`text-xs uppercase tracking-widest ${p.picked === m.result ? "text-neon" : locked ? "text-muted-foreground line-through" : "text-muted-foreground"}`}
-                  >
-                    {p.picked === "team_a" ? m.team_a : m.team_b}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="mt-2 text-sm text-muted-foreground">No picks yet.</p>
-          )}
-        </div>
-      )}
+                  {p.picked === "team_a" ? m.team_a : m.team_b}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-2 text-sm text-muted-foreground">No picks yet.</p>
+        )}
+      </div>
 
       {player?.name === "Abir" && (
         <div className="text-right">
