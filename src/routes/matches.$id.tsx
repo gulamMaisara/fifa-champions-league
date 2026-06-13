@@ -170,7 +170,7 @@ function MatchDetail() {
           {m.kickoff_at && (
             <>
               <span>·</span>
-              <span>{new Date(m.kickoff_at).toLocaleString("en-US", { timeZone: "America/New_York", timeZoneName: "short" })}</span>
+              <span>{new Date(m.kickoff_at).toLocaleString("en-US", { timeZoneName: "short" })}</span>
               {m.status === "scheduled" && (() => {
                 const tr = formatTimeRemaining(m.kickoff_at);
                 return tr ? <span>({tr})</span> : null;
