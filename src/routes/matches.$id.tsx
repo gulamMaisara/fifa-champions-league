@@ -51,10 +51,10 @@ function MatchDetail() {
       if (error) throw error;
       return data;
     },
-    enabled: player?.name === "Abir",
+    enabled: !!player?.is_admin,
   });
 
-  const effectivePlayerId = player?.name === "Abir" && selectedPlayerId ? selectedPlayerId : player?.id;
+  const effectivePlayerId = player?.is_admin && selectedPlayerId ? selectedPlayerId : player?.id;
   const effectivePick = picksQ.data?.find((p) => p.player_id === effectivePlayerId);
 
   const pickMut = useMutation({
@@ -117,7 +117,7 @@ function MatchDetail() {
 
   const m = matchQ.data;
   const isPastKickoff = m.kickoff_at ? new Date(m.kickoff_at) < new Date() : false;
-  const locked = (m.status !== "scheduled" || isPastKickoff) && player?.name !== "Abir";
+  const locked = (m.status !== "scheduled" || isPastKickoff) && !player?.is_admin;
 
   const liveData = liveScores?.find((lm) => {
     const a = lm.homeTeam?.name?.toLowerCase() || "";
@@ -216,9 +216,9 @@ function MatchDetail() {
         <div className="rounded-2xl border border-border bg-card p-6">
           <div className="flex items-center justify-between">
             <h2 className="display text-2xl">
-              {player.name === "Abir" && effectivePlayerId !== player.id ? "Player's pick" : "Your pick"}
+              {player.is_admin && effectivePlayerId !== player.id ? "Player's pick" : "Your pick"}
             </h2>
-            {player.name === "Abir" && playersQ.data && (
+            {player.is_admin && playersQ.data && (
               <select
                 className="bg-secondary/40 border border-border rounded-md px-2 py-1 text-sm outline-none focus:border-neon"
                 value={selectedPlayerId || player.id}
@@ -259,7 +259,7 @@ function MatchDetail() {
       )}
 
       {/* Result entry — only Abir can */}
-      {player?.name === "Abir" && (
+      {player?.is_admin && (
         <div className="rounded-2xl border border-border bg-card p-6">
           <div className="flex items-center justify-between">
             <h2 className="display text-2xl">Match result</h2>
@@ -295,7 +295,7 @@ function MatchDetail() {
       )}
 
       {/* Other players' picks */}
-      {/* {(player?.name === "Abir" || m.status === "played" || isFinished) && (
+      {/* {(player?.is_admin || m.status === "played" || isFinished) && (
         
       )} */}
       <div className="rounded-2xl border border-border bg-card p-6">
@@ -321,7 +321,7 @@ function MatchDetail() {
         )}
       </div>
 
-      {player?.name === "Abir" && (
+      {player?.is_admin && (
         <div className="text-right">
           <button
             onClick={() => confirm("Delete this match?") && deleteMut.mutate()}

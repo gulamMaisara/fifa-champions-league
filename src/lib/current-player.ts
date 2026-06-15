@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 
 const KEY = "fifa_fantasy_current_player";
 
-export type CurrentPlayer = { id: string; name: string; group_code: string } | null;
+export type CurrentPlayer = { id: string; name: string; group_code: string; is_admin?: boolean } | null;
 
 export function getCurrentPlayer(): CurrentPlayer {
   if (typeof window === "undefined") return null;

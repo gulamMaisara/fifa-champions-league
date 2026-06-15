@@ -98,18 +98,21 @@ export type Database = {
           id: string;
           name: string;
           group_code: string;
+          is_admin: boolean | null;
         };
         Insert: {
           created_at?: string;
           id?: string;
           name: string;
           group_code?: string;
+          is_admin?: boolean | null;
         };
         Update: {
           created_at?: string;
           id?: string;
           name?: string;
           group_code?: string;
+          is_admin?: boolean | null;
         };
         Relationships: [];
       };

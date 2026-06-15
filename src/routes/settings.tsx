@@ -59,7 +59,7 @@ function SettingsPage() {
     onError: (e: any) => toast.error(e.message),
   });
 
-  if (player?.name !== "Abir") {
+  if (!player?.is_admin) {
     return (
       <div className="max-w-2xl space-y-6 text-center py-12">
         <h1 className="display text-4xl text-neon">Access Denied</h1>

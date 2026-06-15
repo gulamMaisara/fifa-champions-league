@@ -188,7 +188,7 @@ function MatchesPage() {
               </button>
             ))}
           </div>
-          {player?.name === "Abir" && (
+          {player?.is_admin && (
             <button
               onClick={() => syncMut.mutate()}
               disabled={syncMut.isPending}

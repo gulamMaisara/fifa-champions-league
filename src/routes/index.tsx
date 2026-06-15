@@ -49,11 +49,11 @@ function Index() {
       const code = generateGroupCode();
       const { data, error } = await supabase
         .from("players")
-        .insert({ name: trimmed, group_code: code })
-        .select("id,name,group_code")
+        .insert({ name: trimmed, group_code: code, is_admin: true })
+        .select("id,name,group_code,is_admin")
         .single();
       if (error) throw error;
-      setCurrentPlayer({ id: data.id, name: data.name, group_code: data.group_code });
+      setCurrentPlayer({ id: data.id, name: data.name, group_code: data.group_code, is_admin: data.is_admin });
       toast.success(`Group created! Share your code: ${code}`);
       navigate({ to: "/leaderboard" });
     } catch (err: any) {
@@ -88,7 +88,7 @@ function Index() {
       // Check if player with same name exists in this group
       const { data: existing } = await supabase
         .from("players")
-        .select("id,name,group_code")
+        .select("id,name,group_code,is_admin")
         .ilike("name", trimmed)
         .eq("group_code", code)
         .maybeSingle();
@@ -98,12 +98,12 @@ function Index() {
         const { data, error } = await supabase
           .from("players")
           .insert({ name: trimmed, group_code: code })
-          .select("id,name,group_code")
+          .select("id,name,group_code,is_admin")
           .single();
         if (error) throw error;
         p = data;
       }
-      setCurrentPlayer({ id: p!.id, name: p!.name, group_code: p!.group_code });
+      setCurrentPlayer({ id: p!.id, name: p!.name, group_code: p!.group_code, is_admin: p!.is_admin });
       toast.success(`Welcome, ${p!.name}!`);
       navigate({ to: "/matches" });
     } catch (err: any) {

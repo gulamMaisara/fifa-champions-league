@@ -43,6 +43,18 @@ function Leaderboard() {
     onError: (e: any) => toast.error(e.message),
   });
 
+  const makeAdminMut = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("players").update({ is_admin: true }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Player is now an admin");
+      qc.invalidateQueries({ queryKey: ["leaderboard"] });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
   const q = useQuery({
     queryKey: ["leaderboard", me?.group_code],
     queryFn: async () => {
@@ -241,16 +253,28 @@ function Leaderboard() {
                     <div className="flex items-center gap-2 group">
                       <span>{r.name}</span>
                       {me?.id === r.player_id && <span className="text-xs text-neon">you</span>}
-                      {me?.name === "Abir" && (
-                        <button
-                          onClick={() => {
-                            setEditingId(r.player_id);
-                            setEditName(r.name);
-                          }}
-                          className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-neon transition-all"
-                        >
-                          <Pencil className="w-3 h-3" />
-                        </button>
+                      {me?.is_admin && (
+                        <div className="opacity-0 group-hover:opacity-100 flex items-center gap-2 transition-all">
+                          <button
+                            onClick={() => {
+                              setEditingId(r.player_id);
+                              setEditName(r.name);
+                            }}
+                            className="text-muted-foreground hover:text-neon"
+                            title="Edit Name"
+                          >
+                            <Pencil className="w-3 h-3" />
+                          </button>
+                          {me.id !== r.player_id && (
+                            <button
+                              onClick={() => confirm(`Make ${r.name} an admin?`) && makeAdminMut.mutate(r.player_id)}
+                              className="text-[10px] uppercase tracking-widest text-muted-foreground hover:text-neon border border-transparent hover:border-neon/40 px-1.5 py-0.5 rounded"
+                              disabled={makeAdminMut.isPending}
+                            >
+                              Make Admin
+                            </button>
+                          )}
+                        </div>
                       )}
                     </div>
                   )}
