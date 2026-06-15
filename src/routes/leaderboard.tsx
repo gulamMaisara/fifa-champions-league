@@ -1,10 +1,10 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentPlayer } from "@/lib/current-player";
 import { toast } from "sonner";
-import { Pencil, Check, X } from "lucide-react";
+import { Pencil, Check, X, Copy, Share2 } from "lucide-react";
 
 export const Route = createFileRoute("/leaderboard")({
   head: () => ({ meta: [{ title: "Leaderboard — FIFA Fantasy" }] }),
@@ -24,9 +24,11 @@ type Row = {
 
 function Leaderboard() {
   const me = useCurrentPlayer();
+  const navigate = useNavigate();
   const qc = useQueryClient();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
+  const [copied, setCopied] = useState(false);
 
   const updateNameMut = useMutation({
     mutationFn: async ({ id, name }: { id: string; name: string }) => {
@@ -42,10 +44,11 @@ function Leaderboard() {
   });
 
   const q = useQuery({
-    queryKey: ["leaderboard"],
+    queryKey: ["leaderboard", me?.group_code],
     queryFn: async () => {
+      if (!me?.group_code) return [];
       const [players, picks, matches, settingsRes] = await Promise.all([
-        supabase.from("players").select("id,name"),
+        supabase.from("players").select("id,name").eq("group_code", me.group_code),
         supabase.from("picks").select("player_id,match_id,picked"),
         supabase.from("matches").select("id,status,result"),
         supabase.from("scoring_settings").select("*").eq("id", 1).single(),
@@ -98,10 +101,75 @@ function Leaderboard() {
       });
       return Array.from(rows.values()).sort((a, b) => b.points - a.points || b.wins - a.wins);
     },
+    enabled: !!me,
   });
+
+  function handleCopy() {
+    if (!me?.group_code) return;
+    navigator.clipboard.writeText(me.group_code).then(() => {
+      setCopied(true);
+      toast.success("Code copied!");
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+
+  function handleShare() {
+    if (!me?.group_code) return;
+    const url = window.location.origin;
+    const text = `Join my FIFA Fantasy group! Use code: ${me.group_code}\n${url}`;
+    if (navigator.share) {
+      navigator.share({ title: "FIFA Fantasy", text }).catch(() => {});
+    } else {
+      navigator.clipboard.writeText(text).then(() => toast.success("Share text copied!"));
+    }
+  }
+
+  // Not signed in
+  if (!me) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-4 py-24 text-center">
+        <p className="text-muted-foreground">You need to join a group first.</p>
+        <button
+          onClick={() => navigate({ to: "/" })}
+          className="rounded-md bg-neon px-5 py-3 font-semibold text-primary-foreground glow-neon"
+        >
+          Go to Home
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
+      {/* Group code banner */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border border-neon/40 bg-neon/5 px-6 py-4">
+        <div>
+          <p className="text-xs uppercase tracking-widest text-muted-foreground mb-1">Your Group Code</p>
+          <p id="group-code-display" className="display text-3xl text-neon tracking-widest font-mono">
+            {me.group_code}
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">Share this code so friends can join your group</p>
+        </div>
+        <div className="flex gap-2">
+          <button
+            id="btn-copy-code"
+            onClick={handleCopy}
+            className="flex items-center gap-2 rounded-lg border border-neon/40 bg-neon/10 px-4 py-2 text-sm font-semibold text-neon hover:bg-neon/20 transition-colors"
+          >
+            <Copy className="w-4 h-4" />
+            {copied ? "Copied!" : "Copy"}
+          </button>
+          <button
+            id="btn-share-code"
+            onClick={handleShare}
+            className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-semibold hover:bg-secondary transition-colors"
+          >
+            <Share2 className="w-4 h-4" />
+            Share
+          </button>
+        </div>
+      </div>
+
       <div>
         <h1 className="display text-4xl">Leaderboard</h1>
         <p className="text-sm text-muted-foreground">Live standings across all played matches.</p>
@@ -154,12 +222,12 @@ function Leaderboard() {
                         className="bg-input border border-border rounded px-2 py-1 text-sm w-32"
                         autoFocus
                       />
-                      <button 
+                      <button
                         onClick={() => {
                           if (editName.trim()) {
                             updateNameMut.mutate({ id: r.player_id, name: editName });
                           }
-                        }} 
+                        }}
                         disabled={updateNameMut.isPending}
                         className="text-neon hover:opacity-80"
                       >
@@ -198,7 +266,7 @@ function Leaderboard() {
             {q.data?.length === 0 && (
               <tr>
                 <td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">
-                  No players yet.
+                  No players yet — share your group code to invite friends!
                 </td>
               </tr>
             )}

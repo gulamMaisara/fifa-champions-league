@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useCurrentPlayer, setCurrentPlayer } from "@/lib/current-player";
+import { useCurrentPlayer, setCurrentPlayer, generateGroupCode } from "@/lib/current-player";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { LiveScores } from "@/components/live-scores";
@@ -16,10 +16,14 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
+type Tab = "create" | "join";
+
 function Index() {
   const player = useCurrentPlayer();
   const navigate = useNavigate();
+  const [tab, setTab] = useState<Tab>("create");
   const [name, setName] = useState("");
+  const [joinCode, setJoinCode] = useState("");
   const [loading, setLoading] = useState(false);
 
   const stats = useQuery({
@@ -36,30 +40,70 @@ function Index() {
     },
   });
 
-  async function handleJoin(e: React.FormEvent) {
+  async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     const trimmed = name.trim();
     if (!trimmed) return;
     setLoading(true);
     try {
-      // Try to find existing player by name (case-insensitive)
+      const code = generateGroupCode();
+      const { data, error } = await supabase
+        .from("players")
+        .insert({ name: trimmed, group_code: code })
+        .select("id,name,group_code")
+        .single();
+      if (error) throw error;
+      setCurrentPlayer({ id: data.id, name: data.name, group_code: data.group_code });
+      toast.success(`Group created! Share your code: ${code}`);
+      navigate({ to: "/leaderboard" });
+    } catch (err: any) {
+      toast.error(err.message ?? "Could not create group");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleJoin(e: React.FormEvent) {
+    e.preventDefault();
+    const trimmed = name.trim();
+    const code = joinCode.trim().toUpperCase();
+    if (!trimmed || !code) return;
+    setLoading(true);
+    try {
+      // Check if this group code actually exists
+      const { data: groupCheck, error: groupErr } = await supabase
+        .from("players")
+        .select("id")
+        .eq("group_code", code)
+        .limit(1);
+
+      if (groupErr) throw groupErr;
+
+      if (!groupCheck || groupCheck.length === 0) {
+        toast.error("Group code not found. Check the code and try again.");
+        setLoading(false);
+        return;
+      }
+
+      // Check if player with same name exists in this group
       const { data: existing } = await supabase
         .from("players")
-        .select("id,name")
+        .select("id,name,group_code")
         .ilike("name", trimmed)
+        .eq("group_code", code)
         .maybeSingle();
 
       let p = existing;
       if (!p) {
         const { data, error } = await supabase
           .from("players")
-          .insert({ name: trimmed })
-          .select("id,name")
+          .insert({ name: trimmed, group_code: code })
+          .select("id,name,group_code")
           .single();
         if (error) throw error;
         p = data;
       }
-      setCurrentPlayer({ id: p!.id, name: p!.name });
+      setCurrentPlayer({ id: p!.id, name: p!.name, group_code: p!.group_code });
       toast.success(`Welcome, ${p!.name}!`);
       navigate({ to: "/matches" });
     } catch (err: any) {
@@ -108,22 +152,90 @@ function Index() {
               </Link>
             </div>
           ) : (
-            <form onSubmit={handleJoin} className="mt-8 flex flex-col sm:flex-row gap-3 max-w-md">
-              <input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Enter your first name"
-                className="flex-1 rounded-md border border-border bg-input px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                maxLength={40}
-                required
-              />
-              <button
-                disabled={loading}
-                className="rounded-md bg-neon px-5 py-3 font-semibold text-primary-foreground glow-neon disabled:opacity-60"
-              >
-                {loading ? "Joining…" : "Join Game"}
-              </button>
-            </form>
+            <div className="mt-8 max-w-md">
+              {/* Tab switcher */}
+              <div className="flex rounded-lg border border-border overflow-hidden mb-5 w-fit">
+                <button
+                  id="tab-create"
+                  onClick={() => setTab("create")}
+                  className={`px-5 py-2 text-sm font-semibold transition-colors ${
+                    tab === "create"
+                      ? "bg-neon text-primary-foreground"
+                      : "bg-card text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Create Group
+                </button>
+                <button
+                  id="tab-join"
+                  onClick={() => setTab("join")}
+                  className={`px-5 py-2 text-sm font-semibold transition-colors ${
+                    tab === "join"
+                      ? "bg-neon text-primary-foreground"
+                      : "bg-card text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Join Group
+                </button>
+              </div>
+
+              {tab === "create" ? (
+                <form onSubmit={handleCreate} className="flex flex-col sm:flex-row gap-3">
+                  <input
+                    id="create-name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Enter your first name"
+                    className="flex-1 rounded-md border border-border bg-input px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                    maxLength={40}
+                    required
+                  />
+                  <button
+                    id="btn-create"
+                    disabled={loading}
+                    className="rounded-md bg-neon px-5 py-3 font-semibold text-primary-foreground glow-neon disabled:opacity-60 whitespace-nowrap"
+                  >
+                    {loading ? "Creating…" : "Create Group"}
+                  </button>
+                </form>
+              ) : (
+                <form onSubmit={handleJoin} className="flex flex-col gap-3">
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <input
+                      id="join-name"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="Your first name"
+                      className="flex-1 rounded-md border border-border bg-input px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                      maxLength={40}
+                      required
+                    />
+                    <input
+                      id="join-code"
+                      value={joinCode}
+                      onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                      placeholder="Group code (e.g. EAGLE-7341)"
+                      className="flex-1 rounded-md border border-border bg-input px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring font-mono uppercase tracking-widest"
+                      maxLength={12}
+                      required
+                    />
+                  </div>
+                  <button
+                    id="btn-join"
+                    disabled={loading}
+                    className="rounded-md bg-neon px-5 py-3 font-semibold text-primary-foreground glow-neon disabled:opacity-60"
+                  >
+                    {loading ? "Joining…" : "Join Group"}
+                  </button>
+                </form>
+              )}
+
+              <p className="mt-3 text-xs text-muted-foreground">
+                {tab === "create"
+                  ? "A unique group code will be generated — share it with friends to play together."
+                  : "Ask the group creator for their code and enter it above."}
+              </p>
+            </div>
           )}
         </div>
       </section>

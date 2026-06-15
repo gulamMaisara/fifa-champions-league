@@ -138,9 +138,14 @@ function Nav() {
           <div className="flex items-center gap-2 text-sm">
             <span className="hidden sm:inline text-muted-foreground">Playing as</span>
             <span className="font-semibold text-neon">{player.name}</span>
+            {player.group_code && (
+              <span className="hidden sm:inline font-mono text-xs bg-neon/10 text-neon border border-neon/30 rounded px-2 py-0.5 tracking-widest">
+                {player.group_code}
+              </span>
+            )}
             <button
               onClick={() => setCurrentPlayer(null)}
-              className="ml-2 text-xs text-muted-foreground hover:text-foreground"
+              className="ml-1 text-xs text-muted-foreground hover:text-foreground"
             >
               switch
             </button>
