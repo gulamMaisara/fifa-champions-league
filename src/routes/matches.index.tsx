@@ -20,76 +20,77 @@ function getApiMatchUUID(apiId: string | number) {
 }
 
 export async function syncApiMatchesFn() {
-    // 1. Fetch matches from API via Server Function
-    const data = await fetchGamesFn();
-    const games = data.games || [];
+  // 1. Fetch matches from API via Server Function
+  const data = await fetchGamesFn();
+  const games = data.games || [];
+  console.log(games);
 
-    // 2. Fetch existing synced matches from Supabase
-    const { data: existing, error: fetchErr } = await supabase
-      .from("matches")
-      .select("id, team_a, team_b, kickoff_at");
-      
-    if (fetchErr) throw new Error(fetchErr.message);
+  // 2. Fetch existing synced matches from Supabase
+  const { data: existing, error: fetchErr } = await supabase
+    .from("matches")
+    .select("id, team_a, team_b, kickoff_at");
 
-    const existingMap = new Map(existing.map((m) => [m.id, m]));
+  if (fetchErr) throw new Error(fetchErr.message);
 
-    // 3. Prepare upserts
-    const placeholders = ["Winner", "Runner-up", "3rd", "Loser", "Match"];
-    const isPlaceholder = (name: string) => placeholders.some((p) => name.includes(p));
+  const existingMap = new Map(existing.map((m) => [m.id, m]));
 
-    const upserts = games.map((g: any) => {
-      const uuid = getApiMatchUUID(g.id);
-      const apiTeamA = g.home_team_name_en || g.home_team_label;
-      const apiTeamB = g.away_team_name_en || g.away_team_label;
-      let status = "scheduled";
-      if (g.finished === "TRUE") status = "played";
-      else if (g.time_elapsed !== "notstarted" && g.time_elapsed !== "finished") status = "played";
+  // 3. Prepare upserts
+  const placeholders = ["Winner", "Runner-up", "3rd", "Loser", "Match"];
+  const isPlaceholder = (name: string) => placeholders.some((p) => name.includes(p));
 
-      const existingMatch = existingMap.get(uuid);
+  const upserts = games.map((g: any) => {
+    const uuid = getApiMatchUUID(g.id);
+    const apiTeamA = g.home_team_name_en || g.home_team_label;
+    const apiTeamB = g.away_team_name_en || g.away_team_label;
+    let status = "scheduled";
+    if (g.finished === "TRUE") status = "played";
+    else if (g.time_elapsed !== "notstarted" && g.time_elapsed !== "finished") status = "played";
 
-      let finalTeamA = apiTeamA;
-      let finalTeamB = apiTeamB;
+    const existingMatch = existingMap.get(uuid);
 
-      let finalKickoff = null;
-      if (g.local_date) {
-        const parts = g.local_date.split(" ");
-        if (parts.length === 2) {
-          const [mo, d, y] = parts[0].split("/");
-          const time = parts[1];
-          const isoStr = `${y}-${mo}-${d}T${time}:00`;
-          try {
-            const tz = STADIUM_TIMEZONES[g.stadium_id] || "America/New_York";
-            finalKickoff = fromZonedTime(isoStr, tz).toISOString();
-          } catch (e) {
-            console.error("Date parse error", e);
-          }
+    let finalTeamA = apiTeamA;
+    let finalTeamB = apiTeamB;
+
+    let finalKickoff = null;
+    if (g.local_date) {
+      const parts = g.local_date.split(" ");
+      if (parts.length === 2) {
+        const [mo, d, y] = parts[0].split("/");
+        const time = parts[1];
+        const isoStr = `${y}-${mo}-${d}T${time}:00`;
+        try {
+          const tz = STADIUM_TIMEZONES[g.stadium_id] || "America/New_York";
+          finalKickoff = fromZonedTime(isoStr, tz).toISOString();
+        } catch (e) {
+          console.error("Date parse error", e);
         }
       }
+    }
 
-      if (existingMatch) {
-        // If existing is a placeholder, let the API overwrite it.
-        // Otherwise, keep the custom name (Abir's edit).
-        if (!isPlaceholder(existingMatch.team_a)) {
-          finalTeamA = existingMatch.team_a;
-        }
-        if (!isPlaceholder(existingMatch.team_b)) {
-          finalTeamB = existingMatch.team_b;
-        }
+    if (existingMatch) {
+      // If existing is a placeholder, let the API overwrite it.
+      // Otherwise, keep the custom name (Abir's edit).
+      if (!isPlaceholder(existingMatch.team_a)) {
+        finalTeamA = existingMatch.team_a;
       }
+      if (!isPlaceholder(existingMatch.team_b)) {
+        finalTeamB = existingMatch.team_b;
+      }
+    }
 
-      return {
-        id: uuid,
-        team_a: finalTeamA,
-        team_b: finalTeamB,
-        status: status as "scheduled" | "played" | "not_played",
-        kickoff_at: finalKickoff,
-      };
-    });
+    return {
+      id: uuid,
+      team_a: finalTeamA,
+      team_b: finalTeamB,
+      status: status as "scheduled" | "played" | "not_played",
+      kickoff_at: finalKickoff,
+    };
+  });
 
-    const { error: upsertErr } = await supabase.from("matches").upsert(upserts, { onConflict: "id" });
-    if (upsertErr) throw new Error(upsertErr.message);
+  const { error: upsertErr } = await supabase.from("matches").upsert(upserts, { onConflict: "id" });
+  if (upsertErr) throw new Error(upsertErr.message);
 
-    return { success: true, count: upserts.length };
+  return { success: true, count: upserts.length };
 }
 
 type MatchRow = {
@@ -257,7 +258,7 @@ function MatchCard({ match, myPick, liveScores }: { match: MatchRow; myPick?: "t
     const bMatchesAway = matchTeamNames(lm.awayTeam, match.team_b);
     const aMatchesAway = matchTeamNames(lm.awayTeam, match.team_a);
     const bMatchesHome = matchTeamNames(lm.homeTeam, match.team_b);
-    return aMatchesHome || bMatchesAway || aMatchesAway || bMatchesHome;
+    return (aMatchesHome && bMatchesAway) || (aMatchesAway && bMatchesHome);
   });
 
   let scoreA, scoreB, isLive = false, isFinished = false;

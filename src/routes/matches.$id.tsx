@@ -132,7 +132,7 @@ function MatchDetail() {
     const aMatchesAway = b.includes(ta) || ta.includes(b) || sb === ta;
     const bMatchesHome = a.includes(tb) || tb.includes(a) || sa === tb;
 
-    return aMatchesHome || bMatchesAway || aMatchesAway || bMatchesHome;
+    return (aMatchesHome && bMatchesAway) || (aMatchesAway && bMatchesHome);
   });
 
   let scoreA, scoreB, isLive = false, isFinished = false;
@@ -181,7 +181,7 @@ function MatchDetail() {
 
         <div className="display text-5xl mt-4 flex items-center relative py-4">
           <div className="flex-1 text-right pr-20">
-            <span className={m.result === "team_a" || (isFinished && scoreA > scoreB) ? "text-neon" : ""}>{m.team_a}</span>
+            <span className={m.result === "team_a" || (isFinished && (scoreA ?? 0) > (scoreB ?? 0)) ? "text-neon" : ""}>{m.team_a}</span>
           </div>
 
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center">
@@ -197,7 +197,7 @@ function MatchDetail() {
           </div>
 
           <div className="flex-1 text-left pl-20">
-            <span className={m.result === "team_b" || (isFinished && scoreB > scoreA) ? "text-neon" : ""}>{m.team_b}</span>
+            <span className={m.result === "team_b" || (isFinished && (scoreB ?? 0) > (scoreA ?? 0)) ? "text-neon" : ""}>{m.team_b}</span>
           </div>
         </div>
 
