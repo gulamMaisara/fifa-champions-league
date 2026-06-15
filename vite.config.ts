@@ -11,9 +11,12 @@ export default defineConfig({
         rewrite: (path) => path.replace(/^\/api\/games/, '')
       },
       '/api/football-data': {
-        target: 'https://api.football-data.org/v4/competitions/2000/matches',
+        target: 'https://api.football-data.org',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/football-data/, '')
+        rewrite: (path) => path.replace(/^\/api\/football-data/, '/v4/competitions/2000/matches'),
+        headers: {
+          'X-Auth-Token': 'd8afd8801d934f07b163454a6b4b9b6e'
+        }
       }
     }
   },

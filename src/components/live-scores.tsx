@@ -36,9 +36,15 @@ export const fetchGamesFn = createServerFn({ method: "GET" }).handler(async () =
   return res.json();
 });
 
-export const fetchFootballDataLiveScoresFn = async () => {
+export const fetchFootballDataLiveScoresFn = createServerFn({ method: "GET" }).handler(async () => {
   try {
-    const res = await fetch("/api/football-data");
+    const apiKey = process.env["VITE_FOOTBALL_API"] ?? "";
+
+    const res = await fetch("https://api.football-data.org/v4/competitions/2000/matches", {
+      headers: {
+        "X-Auth-Token": apiKey,
+      },
+    });
 
     if (!res.ok) {
       console.error("Football Data API Error:", res.status);
@@ -50,7 +56,7 @@ export const fetchFootballDataLiveScoresFn = async () => {
     console.error("Exception in fetchFootballDataLiveScoresFn:", error);
     return { matches: [], error: error.message || "Unknown error" };
   }
-};
+});
 
 export function useLiveScores() {
   return useQuery({
