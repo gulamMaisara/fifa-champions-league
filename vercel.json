@@ -6,7 +6,7 @@
       "destination": "https://worldcup26.ir/get/games"
     },
     {
-      "source": "/(.*)",
+      "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
   ]
