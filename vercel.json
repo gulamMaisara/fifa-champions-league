@@ -6,7 +6,11 @@
       "destination": "https://worldcup26.ir/get/games"
     },
     {
-      "source": "/((?!api/|_serverFn/|_build/).*)",
+      "source": "/api/football-data",
+      "destination": "https://api.football-data.org/v4/competitions/2000/matches"
+    },
+    {
+      "source": "/(.*)",
       "destination": "/index.html"
     }
   ]
