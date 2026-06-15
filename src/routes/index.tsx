@@ -25,6 +25,7 @@ function Index() {
   const [name, setName] = useState("");
   const [joinCode, setJoinCode] = useState("");
   const [loading, setLoading] = useState(false);
+  const [joinError, setJoinError] = useState("");
 
   const stats = useQuery({
     queryKey: ["home-stats"],
@@ -93,18 +94,23 @@ function Index() {
         .eq("group_code", code)
         .maybeSingle();
 
-      let p = existing;
-      if (!p) {
-        const { data, error } = await supabase
-          .from("players")
-          .insert({ name: trimmed, group_code: code })
-          .select("id,name,group_code,is_admin")
-          .single();
-        if (error) throw error;
-        p = data;
+      if (existing) {
+        setJoinError("This name is already taken in this group. Please choose another name.");
+        setLoading(false);
+        return;
       }
-      setCurrentPlayer({ id: p!.id, name: p!.name, group_code: p!.group_code, is_admin: p!.is_admin });
-      toast.success(`Welcome, ${p!.name}!`);
+      setJoinError("");
+
+      const { data, error } = await supabase
+        .from("players")
+        .insert({ name: trimmed, group_code: code })
+        .select("id,name,group_code,is_admin")
+        .single();
+      if (error) throw error;
+      const p = data;
+
+      setCurrentPlayer({ id: p.id, name: p.name, group_code: p.group_code, is_admin: p.is_admin });
+      toast.success(`Welcome, ${p.name}!`);
       navigate({ to: "/matches" });
     } catch (err: any) {
       toast.error(err.message ?? "Could not join");
@@ -220,6 +226,11 @@ function Index() {
                       required
                     />
                   </div>
+                  {joinError && (
+                    <p className="text-sm font-semibold text-destructive mt-1">
+                      {joinError}
+                    </p>
+                  )}
                   <button
                     id="btn-join"
                     disabled={loading}

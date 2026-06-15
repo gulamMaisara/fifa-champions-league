@@ -25,11 +25,11 @@ export function formatTimeRemaining(dateStr: string): string | null {
 
 export function getMatchStatusLabel(status: string, kickoff_at: string | null): string {
   if (status === "not_played") return "Not played";
-  if (status === "played") return "Played";
+  if (status === "played") return "Finished";
   if (!kickoff_at) return "Upcoming";
   
   const diffMinutes = (new Date().getTime() - new Date(kickoff_at).getTime()) / 60000;
-  if (diffMinutes >= 100) return "Finished";
+  if (diffMinutes >= 120) return "Pending Result";
   if (diffMinutes >= 0) return "Started";
   return "Upcoming";
 }

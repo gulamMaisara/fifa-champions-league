@@ -149,6 +149,60 @@ function MatchesPage() {
     onError: (e: any) => toast.error(e.message),
   });
 
+  useEffect(() => {
+    if (!player?.is_admin || !liveScores || matches.length === 0) return;
+
+    let updates: any[] = [];
+    for (const m of matches) {
+      if (m.result !== null && m.status === "played") continue; // Already set
+
+      // Find if this match is in liveScores and is FINISHED
+      const liveData = liveScores.find((lm) => {
+        const aMatchesHome = matchTeamNames(lm.homeTeam, m.team_a);
+        const bMatchesAway = matchTeamNames(lm.awayTeam, m.team_b);
+        const aMatchesAway = matchTeamNames(lm.awayTeam, m.team_a);
+        const bMatchesHome = matchTeamNames(lm.homeTeam, m.team_b);
+        return (aMatchesHome && bMatchesAway) || (aMatchesAway && bMatchesHome);
+      });
+
+      if (liveData && liveData.status === "FINISHED") {
+        const a = liveData.homeTeam?.name?.toLowerCase() || "";
+        const sa = liveData.homeTeam?.shortName?.toLowerCase() || "";
+        const ta = m.team_a.toLowerCase().trim();
+        const isTeamAHome = a.includes(ta) || ta.includes(a) || sa === ta;
+
+        const scoreA = isTeamAHome ? liveData.score?.fullTime?.home : liveData.score?.fullTime?.away;
+        const scoreB = isTeamAHome ? liveData.score?.fullTime?.away : liveData.score?.fullTime?.home;
+
+        if (scoreA !== undefined && scoreB !== undefined && scoreA !== null && scoreB !== null) {
+          let res = null;
+          if (scoreA > scoreB) res = "team_a";
+          else if (scoreB > scoreA) res = "team_b";
+          else res = "draw";
+
+          updates.push({
+            id: m.id,
+            status: "played",
+            result: res
+          });
+        }
+      }
+    }
+
+    if (updates.length > 0) {
+      // Auto update the database for FINISHED matches
+      Promise.all(
+        updates.map((u) => 
+          supabase.from("matches").update({ status: u.status, result: u.result }).eq("id", u.id)
+        )
+      ).then(() => {
+        toast.success(`Auto-updated results for ${updates.length} match(es).`);
+        qc.invalidateQueries({ queryKey: ["matches"] });
+        qc.invalidateQueries({ queryKey: ["leaderboard"] });
+      });
+    }
+  }, [liveScores, matches, player, qc]);
+
   const visible = matches.filter((m) => {
     if (filter === "scheduled") return m.status === "scheduled";
     if (filter === "played") return m.status !== "scheduled";
