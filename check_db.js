@@ -6,8 +6,8 @@ const supabaseKey = process.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function check() {
-  const { data: matches, error } = await supabase.from('matches').select('id, created_at, team_a').order('created_at', { ascending: true }).limit(10);
-  console.log("Oldest matches:", matches);
+  const { data: picks } = await supabase.from('picks').select('*');
+  console.log("Total picks now:", picks?.length);
 }
 
 check();

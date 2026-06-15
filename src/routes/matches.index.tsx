@@ -107,7 +107,7 @@ function MatchesPage() {
   const player = useCurrentPlayer();
   const qc = useQueryClient();
   const [showAdd, setShowAdd] = useState(false);
-  const [filter, setFilter] = useState<"all" | "scheduled" | "played">("all");
+  const [filter, setFilter] = useState<"scheduled" | "all" | "played">("scheduled");
   const { data: liveScores } = useLiveScores();
 
   const { data: matches = [], isLoading } = useQuery({
@@ -178,7 +178,7 @@ function MatchesPage() {
         </div>
         <div className="flex items-center gap-2">
           <div className="flex rounded-md border border-border bg-card p-1 text-sm">
-            {(["all", "scheduled", "played"] as const).map((f) => (
+            {(["scheduled", "all", "played"] as const).map((f) => (
               <button
                 key={f}
                 onClick={() => setFilter(f)}
