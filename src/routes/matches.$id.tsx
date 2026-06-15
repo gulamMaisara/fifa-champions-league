@@ -31,12 +31,14 @@ function MatchDetail() {
   });
 
   const picksQ = useQuery({
-    queryKey: ["match-picks", id],
+    queryKey: ["match-picks", id, player?.group_code],
     queryFn: async () => {
+      if (!player?.group_code) return [];
       const { data, error } = await supabase
         .from("picks")
-        .select("id,player_id,picked,players(name)")
-        .eq("match_id", id);
+        .select("id,player_id,picked,players!inner(name,group_code)")
+        .eq("match_id", id)
+        .eq("players.group_code", player.group_code);
       if (error) throw error;
       return data ?? [];
     },
@@ -45,9 +47,14 @@ function MatchDetail() {
   const myPick = picksQ.data?.find((p) => p.player_id === player?.id);
 
   const playersQ = useQuery({
-    queryKey: ["players"],
+    queryKey: ["players", player?.group_code],
     queryFn: async () => {
-      const { data, error } = await supabase.from("players").select("id,name").order("name");
+      if (!player?.group_code) return [];
+      const { data, error } = await supabase
+        .from("players")
+        .select("id,name")
+        .eq("group_code", player.group_code)
+        .order("name");
       if (error) throw error;
       return data;
     },

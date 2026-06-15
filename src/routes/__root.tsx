@@ -12,6 +12,7 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { useCurrentPlayer, setCurrentPlayer } from "../lib/current-player";
+import { supabase } from "@/integrations/supabase/client";
 import { Toaster } from "@/components/ui/sonner";
 
 function NotFoundComponent() {
@@ -160,6 +161,24 @@ function Nav() {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const player = useCurrentPlayer();
+
+  // Silently sync is_admin state when the app loads
+  useEffect(() => {
+    if (player?.id) {
+      supabase
+        .from("players")
+        .select("is_admin")
+        .eq("id", player.id)
+        .single()
+        .then(({ data }) => {
+          if (data && data.is_admin !== player.is_admin) {
+            setCurrentPlayer({ ...player, is_admin: data.is_admin });
+          }
+        });
+    }
+  }, [player?.id]);
+
   return (
     <QueryClientProvider client={queryClient}>
       <Nav />
