@@ -179,6 +179,19 @@ function Index() {
                 </button>
               </div>
 
+              {/* Name Advice Callout */}
+              <div className="mb-5 rounded-lg border border-neon/30 bg-neon/5 p-4 text-sm text-muted-foreground shadow-sm">
+                <p className="font-semibold text-neon mb-1.5 flex items-center gap-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 16v-4"/><path d="M12 8h.01"/><rect width="20" height="16" x="2" y="4" rx="2"/></svg>
+                  Pick your name carefully!
+                </p>
+                <ul className="list-disc pl-4 space-y-1 text-xs">
+                  <li>Use a <strong>unique</strong> name (e.g., "John S." instead of just "John").</li>
+                  <li>Make it <strong>easy to remember</strong> — your name is your key to log back in.</li>
+                  <li>Always use the exact same name to access your picks later.</li>
+                </ul>
+              </div>
+
               {tab === "create" ? (
                 <form onSubmit={handleCreate} className="flex flex-col sm:flex-row gap-3">
                   <input
