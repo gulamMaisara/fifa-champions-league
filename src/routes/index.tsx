@@ -16,7 +16,7 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
-type Tab = "create" | "join";
+type Tab = "create" | "join" | "signin";
 
 function Index() {
   const player = useCurrentPlayer();
@@ -25,6 +25,7 @@ function Index() {
   const [name, setName] = useState("");
   const [joinCode, setJoinCode] = useState("");
   const [loading, setLoading] = useState(false);
+  const [joinError, setJoinError] = useState("");
 
   const stats = useQuery({
     queryKey: ["home-stats"],
@@ -93,21 +94,36 @@ function Index() {
         .eq("group_code", code)
         .maybeSingle();
 
-      let p = existing;
-      if (!p) {
+      if (tab === "join") {
+        if (existing) {
+          setJoinError("This name is already taken. Please choose another name, or go to Sign In to log back in.");
+          setLoading(false);
+          return;
+        }
+
         const { data, error } = await supabase
           .from("players")
           .insert({ name: trimmed, group_code: code })
           .select("id,name,group_code,is_admin")
           .single();
         if (error) throw error;
-        p = data;
+
+        setCurrentPlayer({ id: data.id, name: data.name, group_code: data.group_code, is_admin: data.is_admin });
+        toast.success(`Welcome, ${data.name}!`);
+        navigate({ to: "/matches" });
+      } else if (tab === "signin") {
+        if (!existing) {
+          setJoinError("Name not found in this group. Did you mean to Join Group instead?");
+          setLoading(false);
+          return;
+        }
+
+        setCurrentPlayer({ id: existing.id, name: existing.name, group_code: existing.group_code, is_admin: existing.is_admin });
+        toast.success(`Welcome back, ${existing.name}!`);
+        navigate({ to: "/matches" });
       }
-      setCurrentPlayer({ id: p!.id, name: p!.name, group_code: p!.group_code, is_admin: p!.is_admin });
-      toast.success(`Welcome, ${p!.name}!`);
-      navigate({ to: "/matches" });
     } catch (err: any) {
-      toast.error(err.message ?? "Could not join");
+      toast.error(err.message ?? "Could not process request");
     } finally {
       setLoading(false);
     }
@@ -157,40 +173,47 @@ function Index() {
               <div className="flex rounded-lg border border-border overflow-hidden mb-5 w-fit">
                 <button
                   id="tab-create"
-                  onClick={() => setTab("create")}
-                  className={`px-5 py-2 text-sm font-semibold transition-colors ${
-                    tab === "create"
+                  onClick={() => { setTab("create"); setJoinError(""); }}
+                  className={`px-4 py-2 text-sm font-semibold transition-colors ${tab === "create"
                       ? "bg-neon text-primary-foreground"
                       : "bg-card text-muted-foreground hover:text-foreground"
-                  }`}
+                    }`}
                 >
-                  Create Group
+                  Create
                 </button>
                 <button
                   id="tab-join"
-                  onClick={() => setTab("join")}
-                  className={`px-5 py-2 text-sm font-semibold transition-colors ${
-                    tab === "join"
+                  onClick={() => { setTab("join"); setJoinError(""); }}
+                  className={`px-4 py-2 text-sm font-semibold transition-colors ${tab === "join"
                       ? "bg-neon text-primary-foreground"
                       : "bg-card text-muted-foreground hover:text-foreground"
-                  }`}
+                    }`}
                 >
-                  Join Group
+                  Join
+                </button>
+                <button
+                  id="tab-signin"
+                  onClick={() => { setTab("signin"); setJoinError(""); }}
+                  className={`px-4 py-2 text-sm font-semibold transition-colors ${tab === "signin"
+                      ? "bg-neon text-primary-foreground"
+                      : "bg-card text-muted-foreground hover:text-foreground"
+                    }`}
+                >
+                  Sign In
                 </button>
               </div>
-
-              {/* Name Advice Callout */}
-              <div className="mb-5 rounded-lg border border-neon/30 bg-neon/5 p-4 text-sm text-muted-foreground shadow-sm">
-                <p className="font-semibold text-neon mb-1.5 flex items-center gap-2">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 16v-4"/><path d="M12 8h.01"/><rect width="20" height="16" x="2" y="4" rx="2"/></svg>
-                  Pick your name carefully!
-                </p>
-                <ul className="list-disc pl-4 space-y-1 text-xs">
-                  <li>Use a <strong>unique</strong> name (e.g., "John S." instead of just "John").</li>
-                  <li>Make it <strong>easy to remember</strong> — your name is your key to log back in.</li>
-                  <li>Always use the exact same name to access your picks later.</li>
-                </ul>
-              </div>
+              {tab !== "signin" && (
+                <div className="mb-5 rounded-lg border border-neon/30 bg-neon/5 p-4 text-sm text-muted-foreground shadow-sm">
+                  <p className="font-semibold text-neon mb-1.5 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 16v-4" /><path d="M12 8h.01" /><rect width="20" height="16" x="2" y="4" rx="2" /></svg>
+                    Pick your name carefully!
+                  </p>
+                  <ul className="list-disc pl-4 space-y-1 text-xs">
+                    <li>Use a <strong>unique</strong> name (e.g., "John S." instead of just "John").</li>
+                    <li>Make it <strong>easy to remember</strong> — your name is your key to log back in.</li>
+                    <li>Always use the exact same name to access your picks later.</li>
+                  </ul>
+                </div>)}
 
               {tab === "create" ? (
                 <form onSubmit={handleCreate} className="flex flex-col sm:flex-row gap-3">
@@ -227,18 +250,23 @@ function Index() {
                       id="join-code"
                       value={joinCode}
                       onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-                      placeholder="Group code (e.g. EAGLE-7341)"
+                      placeholder="Group code"
                       className="flex-1 rounded-md border border-border bg-input px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring font-mono uppercase tracking-widest"
                       maxLength={12}
                       required
                     />
                   </div>
+                  {joinError && (
+                    <p className="text-sm font-semibold text-destructive mt-1">
+                      {joinError}
+                    </p>
+                  )}
                   <button
                     id="btn-join"
                     disabled={loading}
                     className="rounded-md bg-neon px-5 py-3 font-semibold text-primary-foreground glow-neon disabled:opacity-60"
                   >
-                    {loading ? "Joining…" : "Join Group"}
+                    {loading ? "Processing…" : tab === "signin" ? "Sign In" : "Join Group"}
                   </button>
                 </form>
               )}
@@ -246,7 +274,9 @@ function Index() {
               <p className="mt-3 text-xs text-muted-foreground">
                 {tab === "create"
                   ? "A unique group code will be generated — share it with friends to play together."
-                  : "Ask the group creator for their code and enter it above."}
+                  : tab === "join"
+                    ? "Ask the group creator for their code and enter it above."
+                    : "Enter your exact name and group code to log back in."}
               </p>
             </div>
           )}
