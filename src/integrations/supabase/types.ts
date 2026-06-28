@@ -21,6 +21,7 @@ export type Database = {
           team_b: string;
           team_b_stats: string | null;
           updated_at: string;
+          is_knockout: boolean | null;
         };
         Insert: {
           created_at?: string;
@@ -34,6 +35,7 @@ export type Database = {
           team_b: string;
           team_b_stats?: string | null;
           updated_at?: string;
+          is_knockout?: boolean | null;
         };
         Update: {
           created_at?: string;
@@ -47,6 +49,7 @@ export type Database = {
           team_b?: string;
           team_b_stats?: string | null;
           updated_at?: string;
+          is_knockout?: boolean | null;
         };
         Relationships: [];
       };

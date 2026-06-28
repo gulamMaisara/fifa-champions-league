@@ -101,6 +101,7 @@ type MatchRow = {
   status: "scheduled" | "played" | "not_played";
   result: "team_a" | "team_b" | "draw" | null;
   kickoff_at: string | null;
+  is_knockout: boolean;
 };
 
 function MatchesPage() {
@@ -113,13 +114,22 @@ function MatchesPage() {
   const { data: matches = [], isLoading } = useQuery({
     queryKey: ["matches"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let res = await supabase
         .from("matches")
-        .select("id,team_a,team_b,description,status,result,kickoff_at,created_at")
+        .select("id,team_a,team_b,description,status,result,kickoff_at,created_at,is_knockout")
         .order("kickoff_at", { ascending: true, nullsFirst: false })
         .order("id", { ascending: true });
-      if (error) throw error;
-      return data as MatchRow[];
+      
+      if (res.error) {
+        res = await supabase
+          .from("matches")
+          .select("id,team_a,team_b,description,status,result,kickoff_at,created_at")
+          .order("kickoff_at", { ascending: true, nullsFirst: false })
+          .order("id", { ascending: true });
+      }
+
+      if (res.error) throw res.error;
+      return res.data as MatchRow[];
     },
   });
 
@@ -145,6 +155,19 @@ function MatchesPage() {
     onSuccess: () => {
       toast.success("Matches successfully synced from API!");
       qc.invalidateQueries({ queryKey: ["matches"] });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const toggleKnockoutMut = useMutation({
+    mutationFn: async ({ id, is_knockout }: { id: string; is_knockout: boolean }) => {
+      const { error } = await supabase.from("matches").update({ is_knockout }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Match knockout status updated!");
+      qc.invalidateQueries({ queryKey: ["matches"] });
+      qc.invalidateQueries({ queryKey: ["leaderboard"] });
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -278,7 +301,14 @@ function MatchesPage() {
       ) : (
         <div className="grid gap-3">
           {visible.map((m) => (
-            <MatchCard key={m.id} match={m} myPick={myPicks[m.id]} liveScores={liveScores} />
+            <MatchCard
+              key={m.id}
+              match={m}
+              myPick={myPicks[m.id]}
+              liveScores={liveScores}
+              isAdmin={player?.is_admin}
+              onToggleKnockout={() => toggleKnockoutMut.mutate({ id: m.id, is_knockout: !m.is_knockout })}
+            />
           ))}
         </div>
       )}
@@ -295,7 +325,19 @@ function matchTeamNames(apiTeam: any, ourTeam: string) {
   return a.includes(t) || t.includes(a) || b === t || c === t;
 }
 
-function MatchCard({ match, myPick, liveScores }: { match: MatchRow; myPick?: "team_a" | "team_b"; liveScores?: any[] }) {
+function MatchCard({
+  match,
+  myPick,
+  liveScores,
+  isAdmin,
+  onToggleKnockout,
+}: {
+  match: MatchRow;
+  myPick?: "team_a" | "team_b";
+  liveScores?: any[];
+  isAdmin?: boolean | null;
+  onToggleKnockout?: () => void;
+}) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
@@ -352,6 +394,11 @@ function MatchCard({ match, myPick, liveScores }: { match: MatchRow; myPick?: "t
               })()}
             </span>
           )}
+          {match.is_knockout && (
+            <span className="px-2 py-0.5 rounded-full bg-primary/20 text-primary uppercase text-[10px] ml-2">
+              Knockout
+            </span>
+          )}
         </div>
         <div className="display text-2xl mt-2 flex flex-col gap-1 py-1 sm:max-w-[250px]">
           <div className="flex justify-between items-center">
@@ -387,6 +434,17 @@ function MatchCard({ match, myPick, liveScores }: { match: MatchRow; myPick?: "t
         ) : (
           <div className="text-xs text-muted-foreground">—</div>
         )}
+        {isAdmin && onToggleKnockout && (
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              onToggleKnockout();
+            }}
+            className="mt-2 block w-full rounded-md border border-border px-2 py-1 text-[10px] uppercase tracking-widest text-muted-foreground hover:text-foreground hover:bg-secondary transition"
+          >
+            {match.is_knockout ? "Unmark Knockout" : "Mark Knockout"}
+          </button>
+        )}
       </div>
     </Link>
   );
@@ -403,6 +461,7 @@ function AddMatchForm({ onDone }: { onDone: () => void }) {
   const [bStats, setBStats] = useState("");
   const [desc, setDesc] = useState("");
   const [kickoff, setKickoff] = useState("");
+  const [isKnockout, setIsKnockout] = useState(false);
 
   const mut = useMutation({
     mutationFn: async () => {
@@ -413,6 +472,7 @@ function AddMatchForm({ onDone }: { onDone: () => void }) {
         team_b_stats: bStats.trim() || null,
         description: desc.trim() || null,
         kickoff_at: kickoff ? fromZonedTime(kickoff, "America/New_York").toISOString() : null,
+        is_knockout: isKnockout,
       });
       if (error) throw error;
     },
@@ -451,6 +511,15 @@ function AddMatchForm({ onDone }: { onDone: () => void }) {
           className="w-full rounded-md border border-border bg-input px-3 py-2 text-sm"
         />
       </div>
+      <label className="flex items-center gap-2 text-sm cursor-pointer">
+        <input
+          type="checkbox"
+          checked={isKnockout}
+          onChange={(e) => setIsKnockout(e.target.checked)}
+          className="rounded bg-input border-border"
+        />
+        <span>Knockout Match</span>
+      </label>
       <div className="flex gap-2 justify-end">
         <button
           type="button"

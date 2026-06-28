@@ -59,10 +59,15 @@ function Leaderboard() {
     queryKey: ["leaderboard", me?.group_code],
     queryFn: async () => {
       if (!me?.group_code) return [];
-      const [players, picks, matches, settingsRes] = await Promise.all([
+      let matches = await supabase.from("matches").select("id,status,result,is_knockout");
+      if (matches.error) {
+        // Fallback for before the migration is run
+        matches = await supabase.from("matches").select("id,status,result");
+      }
+
+      const [players, picks, settingsRes] = await Promise.all([
         supabase.from("players").select("id,name").eq("group_code", me.group_code),
         supabase.from("picks").select("player_id,match_id,picked"),
-        supabase.from("matches").select("id,status,result"),
         supabase.from("scoring_settings").select("*").eq("id", 1).single(),
       ]);
       if (players.error) throw players.error;
@@ -74,9 +79,11 @@ function Leaderboard() {
         max_not_played: 2,
       };
       const matchById = new Map(matches.data?.map((m) => [m.id, m]));
-      const rows = new Map<string, Row>();
-      players.data?.forEach((p) =>
-        rows.set(p.id, {
+      const knockoutRows = new Map<string, Row>();
+      const groupRows = new Map<string, Row>();
+      
+      players.data?.forEach((p) => {
+        knockoutRows.set(p.id, {
           player_id: p.id,
           name: p.name,
           points: 0,
@@ -85,12 +92,25 @@ function Leaderboard() {
           losses: 0,
           not_played: 0,
           picks: 0,
-        }),
-      );
+        });
+        groupRows.set(p.id, {
+          player_id: p.id,
+          name: p.name,
+          points: 0,
+          wins: 0,
+          draws: 0,
+          losses: 0,
+          not_played: 0,
+          picks: 0,
+        });
+      });
+
       picks.data?.forEach((pk) => {
-        const r = rows.get(pk.player_id);
         const m = matchById.get(pk.match_id);
-        if (!r || !m) return;
+        if (!m) return;
+        const r = m.is_knockout ? knockoutRows.get(pk.player_id) : groupRows.get(pk.player_id);
+        if (!r) return;
+        
         r.picks++;
         if (m.status === "not_played") {
           if (r.not_played < s.max_not_played) {
@@ -111,7 +131,10 @@ function Leaderboard() {
           r.points += s.loss_points;
         }
       });
-      return Array.from(rows.values()).sort((a, b) => b.points - a.points || b.wins - a.wins);
+      
+      const knockout = Array.from(knockoutRows.values()).sort((a, b) => b.points - a.points || b.wins - a.wins);
+      const group = Array.from(groupRows.values()).sort((a, b) => b.points - a.points || b.wins - a.wins);
+      return { knockout, group };
     },
     enabled: !!me,
   });
@@ -184,12 +207,12 @@ function Leaderboard() {
 
       <div>
         <h1 className="display text-4xl">Leaderboard</h1>
-        <p className="text-sm text-muted-foreground">Live standings across all played matches.</p>
+        <p className="text-sm text-muted-foreground">Live standings for the Knockout Stage.</p>
       </div>
 
-      {q.data && q.data.length >= 1 && (
+      {q.data && q.data.knockout.length >= 1 && (
         <div className="grid sm:grid-cols-3 gap-3">
-          {q.data.slice(0, 3).map((r, i) => (
+          {q.data.knockout.slice(0, 3).map((r, i) => (
             <div
               key={r.player_id}
               className={`rounded-2xl border p-5 ${i === 0 ? "border-neon bg-neon/10 glow-neon" : "border-border bg-card"}`}
@@ -204,99 +227,147 @@ function Leaderboard() {
         </div>
       )}
 
-      <div className="rounded-2xl border border-border bg-card overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-secondary/60 text-xs uppercase tracking-widest text-muted-foreground">
-            <tr>
-              <th className="px-4 py-3 text-left">#</th>
-              <th className="px-4 py-3 text-left">Player</th>
-              <th className="px-4 py-3 text-right">Pts</th>
-              <th className="px-4 py-3 text-right">W</th>
-              <th className="px-4 py-3 text-right">D</th>
-              <th className="px-4 py-3 text-right">L</th>
-              <th className="px-4 py-3 text-right">NP</th>
-              <th className="px-4 py-3 text-right">Picks</th>
-            </tr>
-          </thead>
-          <tbody>
-            {q.data?.map((r, i) => (
-              <tr
-                key={r.player_id}
-                className={`border-t border-border ${me?.id === r.player_id ? "bg-neon/5" : ""}`}
-              >
-                <td className="px-4 py-3 text-muted-foreground">{i + 1}</td>
-                <td className="px-4 py-3 font-medium">
-                  {editingId === r.player_id ? (
-                    <div className="flex items-center gap-2">
-                      <input
-                        value={editName}
-                        onChange={(e) => setEditName(e.target.value)}
-                        className="bg-input border border-border rounded px-2 py-1 text-sm w-32"
-                        autoFocus
-                      />
-                      <button
-                        onClick={() => {
-                          if (editName.trim()) {
-                            updateNameMut.mutate({ id: r.player_id, name: editName });
-                          }
-                        }}
-                        disabled={updateNameMut.isPending}
-                        className="text-neon hover:opacity-80"
-                      >
-                        <Check className="w-4 h-4" />
-                      </button>
-                      <button onClick={() => setEditingId(null)} className="text-muted-foreground hover:opacity-80">
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2 group">
-                      <span>{r.name}</span>
-                      {me?.id === r.player_id && <span className="text-xs text-neon">you</span>}
-                      {me?.is_admin && (
-                        <div className="opacity-0 group-hover:opacity-100 flex items-center gap-2 transition-all">
-                          <button
-                            onClick={() => {
-                              setEditingId(r.player_id);
-                              setEditName(r.name);
-                            }}
-                            className="text-muted-foreground hover:text-neon"
-                            title="Edit Name"
-                          >
-                            <Pencil className="w-3 h-3" />
-                          </button>
-                          {me.id !== r.player_id && (
-                            <button
-                              onClick={() => confirm(`Make ${r.name} an admin?`) && makeAdminMut.mutate(r.player_id)}
-                              className="text-[10px] uppercase tracking-widest text-muted-foreground hover:text-neon border border-transparent hover:border-neon/40 px-1.5 py-0.5 rounded"
-                              disabled={makeAdminMut.isPending}
-                            >
-                              Make Admin
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </td>
-                <td className="px-4 py-3 text-right display text-xl text-neon">{r.points}</td>
-                <td className="px-4 py-3 text-right">{r.wins}</td>
-                <td className="px-4 py-3 text-right">{r.draws}</td>
-                <td className="px-4 py-3 text-right">{r.losses}</td>
-                <td className="px-4 py-3 text-right">{r.not_played}</td>
-                <td className="px-4 py-3 text-right text-muted-foreground">{r.picks}</td>
-              </tr>
-            ))}
-            {q.data?.length === 0 && (
-              <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">
-                  No players yet — share your group code to invite friends!
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+      <LeaderboardTable 
+        data={q.data?.knockout} 
+        me={me} 
+        editingId={editingId} 
+        editName={editName} 
+        setEditingId={setEditingId} 
+        setEditName={setEditName} 
+        updateNameMut={updateNameMut} 
+        makeAdminMut={makeAdminMut} 
+      />
+
+      <div className="pt-12">
+        <h2 className="display text-3xl">Group Stage Results</h2>
+        <p className="text-sm text-muted-foreground mb-6">Final standings from the group stage.</p>
+        <LeaderboardTable 
+          data={q.data?.group} 
+          me={me} 
+          editingId={editingId} 
+          editName={editName} 
+          setEditingId={setEditingId} 
+          setEditName={setEditName} 
+          updateNameMut={updateNameMut} 
+          makeAdminMut={makeAdminMut} 
+        />
       </div>
+    </div>
+  );
+}
+
+function LeaderboardTable({
+  data,
+  me,
+  editingId,
+  editName,
+  setEditingId,
+  setEditName,
+  updateNameMut,
+  makeAdminMut,
+}: {
+  data?: Row[];
+  me: any;
+  editingId: string | null;
+  editName: string;
+  setEditingId: (id: string | null) => void;
+  setEditName: (name: string) => void;
+  updateNameMut: any;
+  makeAdminMut: any;
+}) {
+  return (
+    <div className="rounded-2xl border border-border bg-card overflow-hidden">
+      <table className="w-full text-sm">
+        <thead className="bg-secondary/60 text-xs uppercase tracking-widest text-muted-foreground">
+          <tr>
+            <th className="px-4 py-3 text-left">#</th>
+            <th className="px-4 py-3 text-left">Player</th>
+            <th className="px-4 py-3 text-right">Pts</th>
+            <th className="px-4 py-3 text-right">W</th>
+            <th className="px-4 py-3 text-right">D</th>
+            <th className="px-4 py-3 text-right">L</th>
+            <th className="px-4 py-3 text-right">NP</th>
+            <th className="px-4 py-3 text-right">Picks</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data?.map((r, i) => (
+            <tr
+              key={r.player_id}
+              className={`border-t border-border ${me?.id === r.player_id ? "bg-neon/5" : ""}`}
+            >
+              <td className="px-4 py-3 text-muted-foreground">{i + 1}</td>
+              <td className="px-4 py-3 font-medium">
+                {editingId === r.player_id ? (
+                  <div className="flex items-center gap-2">
+                    <input
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      className="bg-input border border-border rounded px-2 py-1 text-sm w-32"
+                      autoFocus
+                    />
+                    <button
+                      onClick={() => {
+                        if (editName.trim()) {
+                          updateNameMut.mutate({ id: r.player_id, name: editName });
+                        }
+                      }}
+                      disabled={updateNameMut.isPending}
+                      className="text-neon hover:opacity-80"
+                    >
+                      <Check className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => setEditingId(null)} className="text-muted-foreground hover:opacity-80">
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 group">
+                    <span>{r.name}</span>
+                    {me?.id === r.player_id && <span className="text-xs text-neon">you</span>}
+                    {me?.is_admin && (
+                      <div className="opacity-0 group-hover:opacity-100 flex items-center gap-2 transition-all">
+                        <button
+                          onClick={() => {
+                            setEditingId(r.player_id);
+                            setEditName(r.name);
+                          }}
+                          className="text-muted-foreground hover:text-neon"
+                          title="Edit Name"
+                        >
+                          <Pencil className="w-3 h-3" />
+                        </button>
+                        {me.id !== r.player_id && (
+                          <button
+                            onClick={() => confirm(`Make ${r.name} an admin?`) && makeAdminMut.mutate(r.player_id)}
+                            className="text-[10px] uppercase tracking-widest text-muted-foreground hover:text-neon border border-transparent hover:border-neon/40 px-1.5 py-0.5 rounded"
+                            disabled={makeAdminMut.isPending}
+                          >
+                            Make Admin
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </td>
+              <td className="px-4 py-3 text-right display text-xl text-neon">{r.points}</td>
+              <td className="px-4 py-3 text-right">{r.wins}</td>
+              <td className="px-4 py-3 text-right">{r.draws}</td>
+              <td className="px-4 py-3 text-right">{r.losses}</td>
+              <td className="px-4 py-3 text-right">{r.not_played}</td>
+              <td className="px-4 py-3 text-right text-muted-foreground">{r.picks}</td>
+            </tr>
+          ))}
+          {data?.length === 0 && (
+            <tr>
+              <td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">
+                No players yet — share your group code to invite friends!
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
     </div>
   );
 }
