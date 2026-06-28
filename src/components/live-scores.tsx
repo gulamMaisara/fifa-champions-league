@@ -28,6 +28,12 @@ export interface LiveMatch {
   date?: string;
   stadium_id?: string;
   minute?: number;
+  goals?: {
+    minute: number;
+    scorerName: string;
+    teamName: string;
+    type: string;
+  }[];
 }
 
 export const fetchGamesFn = createServerFn({ method: "GET" }).handler(async () => {
@@ -91,7 +97,13 @@ export function useLiveScores() {
           },
           status,
           date: g.utcDate,
-          minute: g.minute
+          minute: g.minute,
+          goals: g.goals?.map((goal: any) => ({
+            minute: goal.minute,
+            scorerName: goal.scorer?.name || "Unknown",
+            teamName: goal.team?.name,
+            type: goal.type
+          }))
         };
       });
       return mapped;
@@ -181,6 +193,16 @@ export function LiveScores() {
             <span className="display text-xl">{m.score?.fullTime?.away ?? "-"}</span>
           </div>
         </div>
+        {m.goals && m.goals.length > 0 && (
+          <div className="mt-3 border-t border-border/50 pt-2 text-[10px] text-muted-foreground flex flex-col gap-1">
+            {m.goals.map((goal: any, idx: number) => (
+              <div key={idx} className="flex gap-2">
+                <span className="text-neon w-5 text-right">{goal.minute}'</span>
+                <span className="truncate">⚽ {goal.scorerName}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     );
   };

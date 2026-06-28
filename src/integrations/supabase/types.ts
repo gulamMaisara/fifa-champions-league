@@ -22,6 +22,8 @@ export type Database = {
           team_b_stats: string | null;
           updated_at: string;
           is_knockout: boolean | null;
+          score_a: number | null;
+          score_b: number | null;
         };
         Insert: {
           created_at?: string;
@@ -36,6 +38,8 @@ export type Database = {
           team_b_stats?: string | null;
           updated_at?: string;
           is_knockout?: boolean | null;
+          score_a?: number | null;
+          score_b?: number | null;
         };
         Update: {
           created_at?: string;
@@ -50,6 +54,8 @@ export type Database = {
           team_b_stats?: string | null;
           updated_at?: string;
           is_knockout?: boolean | null;
+          score_a?: number | null;
+          score_b?: number | null;
         };
         Relationships: [];
       };
@@ -61,6 +67,8 @@ export type Database = {
           picked: Database["public"]["Enums"]["pick_team"];
           player_id: string;
           updated_at: string;
+          predicted_score_a: number | null;
+          predicted_score_b: number | null;
         };
         Insert: {
           created_at?: string;
@@ -69,6 +77,8 @@ export type Database = {
           picked: Database["public"]["Enums"]["pick_team"];
           player_id: string;
           updated_at?: string;
+          predicted_score_a?: number | null;
+          predicted_score_b?: number | null;
         };
         Update: {
           created_at?: string;
@@ -77,6 +87,8 @@ export type Database = {
           picked?: Database["public"]["Enums"]["pick_team"];
           player_id?: string;
           updated_at?: string;
+          predicted_score_a?: number | null;
+          predicted_score_b?: number | null;
         };
         Relationships: [
           {
@@ -128,6 +140,7 @@ export type Database = {
           not_played_points: number;
           updated_at: string;
           win_points: number;
+          correct_score_points: number;
         };
         Insert: {
           draw_points?: number;
@@ -137,6 +150,7 @@ export type Database = {
           not_played_points?: number;
           updated_at?: string;
           win_points?: number;
+          correct_score_points?: number;
         };
         Update: {
           draw_points?: number;
@@ -146,6 +160,7 @@ export type Database = {
           not_played_points?: number;
           updated_at?: string;
           win_points?: number;
+          correct_score_points?: number;
         };
         Relationships: [];
       };

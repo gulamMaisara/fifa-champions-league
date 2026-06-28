@@ -33,6 +33,7 @@ function SettingsPage() {
     loss_points: -1,
     not_played_points: 0,
     max_not_played: 2,
+    correct_score_points: 1,
   });
 
   useEffect(() => {
@@ -43,6 +44,7 @@ function SettingsPage() {
         loss_points: q.data.loss_points,
         not_played_points: q.data.not_played_points,
         max_not_played: q.data.max_not_played,
+        correct_score_points: q.data.correct_score_points ?? 1,
       });
   }, [q.data]);
 
@@ -101,6 +103,12 @@ function SettingsPage() {
           label="Max not-played per player"
           value={form.max_not_played}
           onChange={(v) => setForm({ ...form, max_not_played: v })}
+          min={0}
+        />
+        <NumberInput
+          label="Correct score bonus points"
+          value={form.correct_score_points}
+          onChange={(v) => setForm({ ...form, correct_score_points: v })}
           min={0}
         />
         <div className="flex justify-end">

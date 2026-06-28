@@ -58,8 +58,8 @@ function Leaderboard() {
   const q = useQuery({
     queryKey: ["leaderboard", me?.group_code],
     queryFn: async () => {
-      if (!me?.group_code) return [];
-      let matches = await supabase.from("matches").select("id,status,result,is_knockout");
+      if (!me?.group_code) return { knockout: [], group: [] };
+      let matches = await supabase.from("matches").select("id,status,result,is_knockout,score_a,score_b");
       if (matches.error) {
         // Fallback for before the migration is run
         matches = await supabase.from("matches").select("id,status,result");
@@ -67,7 +67,7 @@ function Leaderboard() {
 
       const [players, picks, settingsRes] = await Promise.all([
         supabase.from("players").select("id,name").eq("group_code", me.group_code),
-        supabase.from("picks").select("player_id,match_id,picked"),
+        supabase.from("picks").select("player_id,match_id,picked,predicted_score_a,predicted_score_b"),
         supabase.from("scoring_settings").select("*").eq("id", 1).single(),
       ]);
       if (players.error) throw players.error;
@@ -77,6 +77,7 @@ function Leaderboard() {
         loss_points: -1,
         not_played_points: 0,
         max_not_played: 2,
+        correct_score_points: 1,
       };
       const matchById = new Map(matches.data?.map((m) => [m.id, m]));
       const knockoutRows = new Map<string, Row>();
@@ -129,6 +130,17 @@ function Leaderboard() {
         } else {
           r.losses++;
           r.points += s.loss_points;
+        }
+        
+        if (
+          m.score_a !== null &&
+          m.score_a !== undefined &&
+          pk.predicted_score_a === m.score_a &&
+          m.score_b !== null &&
+          m.score_b !== undefined &&
+          pk.predicted_score_b === m.score_b
+        ) {
+          r.points += (s as any).correct_score_points ?? 1;
         }
       });
       

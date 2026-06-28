@@ -116,16 +116,16 @@ function MatchesPage() {
     queryFn: async () => {
       let res = await supabase
         .from("matches")
-        .select("id,team_a,team_b,description,status,result,kickoff_at,created_at,is_knockout")
+        .select("id,team_a,team_b,description,status,result,kickoff_at,created_at,is_knockout,score_a,score_b")
         .order("kickoff_at", { ascending: true, nullsFirst: false })
         .order("id", { ascending: true });
       
       if (res.error) {
-        res = await supabase
+        res = (await supabase
           .from("matches")
           .select("id,team_a,team_b,description,status,result,kickoff_at,created_at")
           .order("kickoff_at", { ascending: true, nullsFirst: false })
-          .order("id", { ascending: true });
+          .order("id", { ascending: true })) as any;
       }
 
       if (res.error) throw res.error;
@@ -206,7 +206,9 @@ function MatchesPage() {
           updates.push({
             id: m.id,
             status: "played",
-            result: res
+            result: res,
+            score_a: scoreA,
+            score_b: scoreB
           });
         }
       }
@@ -216,7 +218,7 @@ function MatchesPage() {
       // Auto update the database for FINISHED matches
       Promise.all(
         updates.map((u) => 
-          supabase.from("matches").update({ status: u.status, result: u.result }).eq("id", u.id)
+          supabase.from("matches").update({ status: u.status, result: u.result, score_a: u.score_a, score_b: u.score_b }).eq("id", u.id)
         )
       ).then(() => {
         toast.success(`Auto-updated results for ${updates.length} match(es).`);
@@ -364,6 +366,10 @@ function MatchCard({
     scoreB = isTeamAHome ? liveData.score?.fullTime?.away : liveData.score?.fullTime?.home;
     isLive = liveData.status === "IN_PLAY" || liveData.status === "PAUSED";
     isFinished = liveData.status === "FINISHED";
+  } else {
+    scoreA = match.score_a;
+    scoreB = match.score_b;
+    isFinished = match.status === "played";
   }
 
   return (
@@ -404,13 +410,13 @@ function MatchCard({
           <div className="flex justify-between items-center">
             <TeamName name={match.team_a} winner={match.result === "team_a" || (isFinished && scoreA > scoreB)} />
             <span className="text-neon font-bold ml-4">
-              {liveData && (scoreA !== null || scoreB !== null) ? (scoreA ?? 0) : "-"}
+              {(scoreA !== null && scoreB !== null && scoreA !== undefined) ? (scoreA ?? 0) : "-"}
             </span>
           </div>
           <div className="flex justify-between items-center">
             <TeamName name={match.team_b} winner={match.result === "team_b" || (isFinished && scoreB > scoreA)} />
             <span className="text-neon font-bold ml-4">
-              {liveData && (scoreA !== null || scoreB !== null) ? (scoreB ?? 0) : "-"}
+              {(scoreA !== null && scoreB !== null && scoreB !== undefined) ? (scoreB ?? 0) : "-"}
             </span>
           </div>
 
@@ -420,6 +426,16 @@ function MatchCard({
         </div>
         {match.description && (
           <p className="text-sm text-muted-foreground mt-1 line-clamp-1">{match.description}</p>
+        )}
+        {liveData?.goals && liveData.goals.length > 0 && (
+          <div className="mt-3 border-t border-border/50 pt-2 text-[10px] text-muted-foreground flex flex-col gap-1">
+            {liveData.goals.map((goal: any, idx: number) => (
+              <div key={idx} className="flex gap-2">
+                <span className="text-neon w-6 text-right">{goal.minute}'</span>
+                <span className="truncate">⚽ {goal.scorerName}</span>
+              </div>
+            ))}
+          </div>
         )}
       </div>
       <div className="sm:text-right shrink-0">
@@ -434,7 +450,7 @@ function MatchCard({
         ) : (
           <div className="text-xs text-muted-foreground">—</div>
         )}
-        {isAdmin && onToggleKnockout && (
+        {/* {isAdmin && onToggleKnockout && (
           <button
             onClick={(e) => {
               e.preventDefault();
@@ -444,7 +460,7 @@ function MatchCard({
           >
             {match.is_knockout ? "Unmark Knockout" : "Mark Knockout"}
           </button>
-        )}
+        )} */}
       </div>
     </Link>
   );

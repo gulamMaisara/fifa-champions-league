@@ -54,7 +54,7 @@ function Index() {
         .select("id,name,group_code,is_admin")
         .single();
       if (error) throw error;
-      setCurrentPlayer({ id: data.id, name: data.name, group_code: data.group_code, is_admin: data.is_admin });
+      setCurrentPlayer({ id: data.id, name: data.name, group_code: data.group_code, is_admin: data.is_admin ?? false });
       toast.success(`Group created! Share your code: ${code}`);
       navigate({ to: "/leaderboard" });
     } catch (err: any) {
@@ -108,7 +108,7 @@ function Index() {
           .single();
         if (error) throw error;
 
-        setCurrentPlayer({ id: data.id, name: data.name, group_code: data.group_code, is_admin: data.is_admin });
+        setCurrentPlayer({ id: data.id, name: data.name, group_code: data.group_code, is_admin: data.is_admin ?? false });
         toast.success(`Welcome, ${data.name}!`);
         navigate({ to: "/matches" });
       } else if (tab === "signin") {
@@ -118,7 +118,7 @@ function Index() {
           return;
         }
 
-        setCurrentPlayer({ id: existing.id, name: existing.name, group_code: existing.group_code, is_admin: existing.is_admin });
+        setCurrentPlayer({ id: existing.id, name: existing.name, group_code: existing.group_code, is_admin: existing.is_admin ?? false });
         toast.success(`Welcome back, ${existing.name}!`);
         navigate({ to: "/matches" });
       }

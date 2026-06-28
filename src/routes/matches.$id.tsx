@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentPlayer } from "@/lib/current-player";
 import { toast } from "sonner";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { formatTimeRemaining, getMatchStatusLabel } from "@/lib/utils";
 import { useLiveScores } from "@/components/live-scores";
 
@@ -36,7 +36,7 @@ function MatchDetail() {
       if (!player?.group_code) return [];
       const { data, error } = await supabase
         .from("picks")
-        .select("id,player_id,picked,players!inner(name,group_code)")
+        .select("id,player_id,picked,predicted_score_a,predicted_score_b,players!inner(name,group_code)")
         .eq("match_id", id)
         .eq("players.group_code", player.group_code);
       if (error) throw error;
@@ -64,17 +64,33 @@ function MatchDetail() {
   const effectivePlayerId = player?.is_admin && selectedPlayerId ? selectedPlayerId : player?.id;
   const effectivePick = picksQ.data?.find((p) => p.player_id === effectivePlayerId);
 
+  const [predScoreA, setPredScoreA] = useState<string>("");
+  const [predScoreB, setPredScoreB] = useState<string>("");
+
+  useEffect(() => {
+    if (effectivePick) {
+      setPredScoreA(effectivePick.predicted_score_a?.toString() ?? "");
+      setPredScoreB(effectivePick.predicted_score_b?.toString() ?? "");
+    } else {
+      setPredScoreA("");
+      setPredScoreB("");
+    }
+  }, [effectivePick]);
+
   const pickMut = useMutation({
     mutationFn: async (picked: "team_a" | "team_b") => {
       if (!player) throw new Error("Join first");
       if (!effectivePlayerId) throw new Error("No player selected");
+      const pA = predScoreA ? parseInt(predScoreA, 10) : null;
+      const pB = predScoreB ? parseInt(predScoreB, 10) : null;
+
       if (effectivePick) {
-        const { error } = await supabase.from("picks").update({ picked }).eq("id", effectivePick.id);
+        const { error } = await supabase.from("picks").update({ picked, predicted_score_a: pA, predicted_score_b: pB }).eq("id", effectivePick.id);
         if (error) throw error;
       } else {
         const { error } = await supabase
           .from("picks")
-          .insert({ player_id: effectivePlayerId, match_id: id, picked });
+          .insert({ player_id: effectivePlayerId, match_id: id, picked, predicted_score_a: pA, predicted_score_b: pB });
         if (error) throw error;
       }
     },
@@ -91,10 +107,12 @@ function MatchDetail() {
     mutationFn: async (opts: {
       status: "scheduled" | "played" | "not_played";
       result: "team_a" | "team_b" | "draw" | null;
+      score_a?: number | null;
+      score_b?: number | null;
     }) => {
       const { error } = await supabase
         .from("matches")
-        .update({ status: opts.status, result: opts.result })
+        .update({ status: opts.status, result: opts.result, score_a: opts.score_a, score_b: opts.score_b })
         .eq("id", id);
       if (error) throw error;
     },
@@ -245,9 +263,25 @@ function MatchDetail() {
             </p>
           ) : (
             <p className="text-sm text-muted-foreground mt-1">
-              Pick the team you think will win. You can change it until the match starts.
+              Pick the team you think will win. You can optionally predict the exact score for bonus points! (Prediction is saved when you click a Pick button)
             </p>
           )}
+          
+          <div className="mt-6 mb-4 flex items-center gap-4 justify-center bg-secondary/20 p-4 rounded-xl border border-border relative">
+            <div className="absolute -top-3 bg-card border border-border px-3 py-0.5 rounded-full text-[10px] uppercase tracking-widest text-muted-foreground">
+              Optional Score Prediction
+            </div>
+            <div className="flex flex-col items-center">
+              <label className="text-xs uppercase tracking-widest text-muted-foreground mb-2 truncate max-w-[100px]">{m.team_a}</label>
+              <input type="number" min="0" value={predScoreA} onChange={(e) => setPredScoreA(e.target.value)} disabled={locked} placeholder="-" className="w-16 bg-input border border-border rounded-md px-2 py-2 text-center display text-2xl focus:border-neon focus:ring-1 focus:ring-neon outline-none transition-all" />
+            </div>
+            <div className="text-muted-foreground text-xl mx-2 mt-4">-</div>
+            <div className="flex flex-col items-center">
+              <label className="text-xs uppercase tracking-widest text-muted-foreground mb-2 truncate max-w-[100px]">{m.team_b}</label>
+              <input type="number" min="0" value={predScoreB} onChange={(e) => setPredScoreB(e.target.value)} disabled={locked} placeholder="-" className="w-16 bg-input border border-border rounded-md px-2 py-2 text-center display text-2xl focus:border-neon focus:ring-1 focus:ring-neon outline-none transition-all" />
+            </div>
+          </div>
+
           <div className="mt-4 grid sm:grid-cols-2 gap-3">
             <PickButton
               label={m.team_a}
@@ -278,7 +312,7 @@ function MatchDetail() {
           </div>
           {editing ? (
             <ResultEditor
-              current={{ status: m.status, result: m.result }}
+              current={{ status: m.status, result: m.result, score_a: m.score_a, score_b: m.score_b }}
               teamA={m.team_a}
               teamB={m.team_b}
               onCancel={() => setEditing(false)}
@@ -315,11 +349,21 @@ function MatchDetail() {
                 className="flex items-center justify-between rounded-md border border-border bg-secondary/40 px-3 py-2"
               >
                 <span className="font-medium">{p.players?.name ?? "—"}</span>
-                <span
-                  className={`text-xs uppercase tracking-widest ${p.picked === m.result ? "text-neon" : locked ? "text-muted-foreground line-through" : "text-muted-foreground"}`}
-                >
-                  {p.picked === "team_a" ? m.team_a : m.team_b}
-                </span>
+                <div className="flex flex-col items-end">
+                  <span
+                    className={`text-xs uppercase tracking-widest ${p.picked === m.result ? "text-neon" : locked ? "text-muted-foreground line-through" : "text-muted-foreground"}`}
+                  >
+                    {p.picked === "team_a" ? m.team_a : m.team_b}
+                  </span>
+                  {(p.predicted_score_a !== null && p.predicted_score_b !== null) && (
+                    <span className="text-[10px] text-muted-foreground mt-0.5">
+                      Predicted: {p.predicted_score_a} - {p.predicted_score_b}
+                      {m.score_a !== null && p.predicted_score_a === m.score_a && p.predicted_score_b === m.score_b && (
+                        <span className="text-neon ml-1">(+Bonus)</span>
+                      )}
+                    </span>
+                  )}
+                </div>
               </li>
             ))}
           </ul>
@@ -385,22 +429,29 @@ function ResultEditor({
   onCancel,
   onSave,
 }: {
-  current: { status: string; result: string | null };
+  current: { status: string; result: string | null; score_a: number | null; score_b: number | null };
   teamA: string;
   teamB: string;
   onCancel: () => void;
   onSave: (s: {
     status: "scheduled" | "played" | "not_played";
     result: "team_a" | "team_b" | "draw" | null;
+    score_a: number | null;
+    score_b: number | null;
   }) => void;
 }) {
   const [choice, setChoice] = useState<"team_a" | "team_b" | "draw" | "not_played" | "scheduled">(
     current.status === "not_played" ? "not_played" : ((current.result as any) ?? "scheduled"),
   );
+  const [sa, setSa] = useState(current.score_a?.toString() ?? "");
+  const [sb, setSb] = useState(current.score_b?.toString() ?? "");
+
   function save() {
-    if (choice === "scheduled") onSave({ status: "scheduled", result: null });
-    else if (choice === "not_played") onSave({ status: "not_played", result: null });
-    else onSave({ status: "played", result: choice });
+    const pA = sa ? parseInt(sa, 10) : null;
+    const pB = sb ? parseInt(sb, 10) : null;
+    if (choice === "scheduled") onSave({ status: "scheduled", result: null, score_a: null, score_b: null });
+    else if (choice === "not_played") onSave({ status: "not_played", result: null, score_a: null, score_b: null });
+    else onSave({ status: "played", result: choice, score_a: pA, score_b: pB });
   }
   const options: { v: typeof choice; label: string }[] = [
     { v: "team_a", label: `${teamA} won` },
@@ -422,6 +473,14 @@ function ResultEditor({
           </button>
         ))}
       </div>
+      {(choice === "team_a" || choice === "team_b" || choice === "draw") && (
+        <div className="flex items-center gap-4 bg-secondary/20 p-3 rounded-md border border-border mt-3">
+          <div className="text-xs uppercase tracking-widest text-muted-foreground w-16">Score:</div>
+          <input type="number" placeholder="A" value={sa} onChange={(e) => setSa(e.target.value)} className="w-16 bg-input border border-border rounded px-2 py-1 text-center" />
+          <span className="text-muted-foreground">-</span>
+          <input type="number" placeholder="B" value={sb} onChange={(e) => setSb(e.target.value)} className="w-16 bg-input border border-border rounded px-2 py-1 text-center" />
+        </div>
+      )}
       <div className="flex gap-2 justify-end">
         <button onClick={onCancel} className="rounded-md border border-border px-4 py-2 text-sm">
           Cancel
