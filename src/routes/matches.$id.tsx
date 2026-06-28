@@ -230,10 +230,10 @@ function MatchDetail() {
 
         {m.description && <p className="mt-4 text-sm whitespace-pre-wrap">{m.description}</p>}
 
-        <div className="grid sm:grid-cols-2 gap-4 mt-6">
+        {/* <div className="grid sm:grid-cols-2 gap-4 mt-6">
           <TeamPanel name={m.team_a} stats={m.team_a_stats} side="A" />
           <TeamPanel name={m.team_b} stats={m.team_b_stats} side="B" />
-        </div>
+        </div> */}
       </div>
 
       {/* Picking */}
@@ -263,11 +263,11 @@ function MatchDetail() {
             </p>
           ) : (
             <p className="text-sm text-muted-foreground mt-1">
-              Pick the team you think will win. You can optionally predict the exact score for bonus points! (Prediction is saved when you click a Pick button)
+              Pick the team you think will win. You can optionally predict the exact score for bonus points! (Remember to save your score)
             </p>
           )}
           
-          <div className="mt-6 mb-4 flex items-center gap-4 justify-center bg-secondary/20 p-4 rounded-xl border border-border relative">
+          <div className="mt-6 mb-6 flex items-center gap-4 justify-center bg-secondary/20 p-4 rounded-xl border border-border relative">
             <div className="absolute -top-3 bg-card border border-border px-3 py-0.5 rounded-full text-[10px] uppercase tracking-widest text-muted-foreground">
               Optional Score Prediction
             </div>
@@ -280,6 +280,15 @@ function MatchDetail() {
               <label className="text-xs uppercase tracking-widest text-muted-foreground mb-2 truncate max-w-[100px]">{m.team_b}</label>
               <input type="number" min="0" value={predScoreB} onChange={(e) => setPredScoreB(e.target.value)} disabled={locked} placeholder="-" className="w-16 bg-input border border-border rounded-md px-2 py-2 text-center display text-2xl focus:border-neon focus:ring-1 focus:ring-neon outline-none transition-all" />
             </div>
+            {effectivePick && (
+              <button
+                disabled={locked || pickMut.isPending || (predScoreA === effectivePick.predicted_score_a?.toString() && predScoreB === effectivePick.predicted_score_b?.toString())}
+                onClick={() => pickMut.mutate(effectivePick.picked)}
+                className="absolute -bottom-3 bg-neon text-primary-foreground font-semibold px-4 py-1 rounded-full text-xs uppercase tracking-widest shadow-md hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Save Score
+              </button>
+            )}
           </div>
 
           <div className="mt-4 grid sm:grid-cols-2 gap-3">

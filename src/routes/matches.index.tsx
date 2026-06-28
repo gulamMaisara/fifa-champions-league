@@ -139,12 +139,12 @@ function MatchesPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("picks")
-        .select("match_id,picked")
+        .select("match_id,picked,predicted_score_a,predicted_score_b")
         .eq("player_id", player!.id);
       if (error) throw error;
-      const map: Record<string, "team_a" | "team_b"> = {};
+      const map: Record<string, any> = {};
       data?.forEach((p) => {
-        map[p.match_id] = p.picked as any;
+        map[p.match_id] = { picked: p.picked, scoreA: p.predicted_score_a, scoreB: p.predicted_score_b };
       });
       return map;
     },
@@ -440,8 +440,15 @@ function MatchCard({
       </div>
       <div className="sm:text-right shrink-0">
         {myPick ? (
-          <div className="inline-block rounded-md border border-neon/40 bg-neon/10 px-2 py-1 sm:px-3 sm:py-1.5 text-[10px] sm:text-xs text-neon uppercase tracking-widest">
-            Picked: {myPick === "team_a" ? match.team_a : match.team_b}
+          <div className="flex flex-col items-end gap-1">
+            <div className="inline-block rounded-md border border-neon/40 bg-neon/10 px-2 py-1 sm:px-3 sm:py-1.5 text-[10px] sm:text-xs text-neon uppercase tracking-widest">
+              Picked: {myPick.picked === "team_a" ? match.team_a : match.team_b}
+            </div>
+            {(myPick.scoreA !== null && myPick.scoreB !== null && myPick.scoreA !== undefined) && (
+              <div className="text-[10px] text-muted-foreground uppercase tracking-widest">
+                Pred: {myPick.scoreA} - {myPick.scoreB}
+              </div>
+            )}
           </div>
         ) : match.status === "scheduled" ? (
           <div className="inline-block rounded-md border border-amber-400/40 bg-amber-400/10 px-2 py-1 sm:px-3 sm:py-1.5 text-[10px] sm:text-xs text-amber-400 uppercase tracking-widest">
